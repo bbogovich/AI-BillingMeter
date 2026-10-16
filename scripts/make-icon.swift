@@ -52,7 +52,7 @@ func drawIcon(in ctx: CGContext, size s: CGFloat) {
     ctx.restoreGState()
 
     // Speedometer dial overlaid on the asterisk's centre.
-    let r: CGFloat = 178
+    let r: CGFloat = 231 // 178 × 1.3
     let k = r / 225 // dial details were laid out for r = 225
     ctx.saveGState()
     ctx.setShadow(offset: CGSize(width: 0, height: -8), blur: 24, color: color(0x000000, 0.45))
