@@ -78,6 +78,8 @@ public struct PeriodReport: Sendable {
     public var buckets: [UsageBucket]
     public var byModel: [BreakdownRow]
     public var byProject: [BreakdownRow]
+    /// Set when the period starts before the detail window, so part of it is weekly summaries.
+    public var summarizedBefore: Date? = nil
 }
 
 /// API-metered cost for the billing period compared with the flat plan price.
