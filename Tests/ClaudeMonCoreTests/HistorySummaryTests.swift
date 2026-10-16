@@ -101,7 +101,7 @@ private func calls(_ d: UsageData) -> Int {
     }
 
     // trace: R-CMUSE-012.T3
-    @Test func twelveThousandCallsShrinkToAtMostNinetySummaries() {
+    @Test func twelveThousandCallsShrinkToAtMostNinetySixSummaries() {
         var entries: [UsageEntry] = []
         let models = ["claude-opus-5-5", "claude-sonnet-5-5"], projects = ["Alpha", "Beta", "Gamma"]
         let start = day(2026, 6, 1, 0)
@@ -113,7 +113,7 @@ private func calls(_ d: UsageData) -> Int {
         let r = HistoryCompactor.compact(entries: entries, summaries: [], before: window,
                                          policy: p, calendar: cal, prices: .standard)
         #expect(r.entries.isEmpty)
-        #expect(r.summaries.count <= 90)
+        #expect(r.summaries.count <= 96)  // 16 week segments (Jun 5, Jul 5, Aug 6) × 2 models × 3 projects
         #expect(tokens(UsageData(entries: r.entries, summaries: r.summaries)) == tokens(before))
         #expect(calls(UsageData(entries: r.entries, summaries: r.summaries)) == 12_000)
     }

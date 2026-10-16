@@ -50,6 +50,15 @@ public struct TokenTotals: Hashable, Sendable {
         requests += 1
         if let c { cost = cost + c } else { unpricedTokens += e.totalTokens }
     }
+
+    mutating func add(_ s: WeeklySummary, cost c: CostBreakdown?) {
+        input += s.inputTokens
+        output += s.outputTokens
+        cacheWrite += s.cacheWriteTokens
+        cacheRead += s.cacheReadTokens
+        requests += s.requests
+        if let c { cost = cost + c } else { unpricedTokens += s.totalTokens }
+    }
 }
 
 /// One stacked bar segment: usage of one model family within one time bucket.
@@ -149,7 +158,16 @@ public struct ReportBuilder: Sendable {
 
     // MARK: Reports
 
-    public func report(_ period: ReportPeriod, entries: [UsageEntry], now: Date) -> PeriodReport {
+    /// Report over detailed calls and weekly summaries. A summary counts toward a period when its
+    /// week segment starts inside it, and is charted at that start.
+    /// trace: R-CMRPT-012, R-CMRPT-013 <- F-14
+    public func report(_ period: ReportPeriod, data: UsageData, now: Date) -> PeriodReport {
+        report(period, entries: data.entries, summaries: data.summaries,
+               summarizedBefore: data.summarizedBefore, now: now)
+    }
+
+    public func report(_ period: ReportPeriod, entries: [UsageEntry], summaries: [WeeklySummary] = [],
+                       summarizedBefore: Date? = nil, now: Date) -> PeriodReport {
         let interval = interval(for: period, now: now)
         let unit: Calendar.Component = period == .today ? .hour : .day
         var totals = TokenTotals()
@@ -167,6 +185,16 @@ public struct ReportBuilder: Sendable {
             let prev = bucketMap[b, default: [:]][fam] ?? (0, 0)
             bucketMap[b, default: [:]][fam] = (prev.0 + e.totalTokens, prev.1 + (c?.total ?? 0))
         }
+        for s in summaries where s.weekStart >= interval.start && s.weekStart < interval.end {
+            let c = prices.cost(of: s)
+            totals.add(s, cost: c)
+            models[s.model, default: TokenTotals()].add(s, cost: c)
+            projects[s.project.isEmpty ? "(unknown)" : s.project, default: TokenTotals()].add(s, cost: c)
+            let b = calendar.dateInterval(of: unit, for: s.weekStart)!.start
+            let fam = Self.family(of: s.model)
+            let prev = bucketMap[b, default: [:]][fam] ?? (0, 0)
+            bucketMap[b, default: [:]][fam] = (prev.0 + s.totalTokens, prev.1 + (c?.total ?? 0))
+        }
 
         let buckets = bucketMap.flatMap { start, fams in
             fams.map { UsageBucket(start: start, family: $0.key, tokens: $0.value.0, cost: $0.value.1) }
@@ -180,13 +208,19 @@ public struct ReportBuilder: Sendable {
         let lastInstant = interval.end.addingTimeInterval(-1)
         let domainEnd = calendar.dateInterval(of: unit, for: lastInstant)!.end
         return PeriodReport(period: period, interval: interval, chartDomain: domainStart...domainEnd, bucketUnit: unit, totals: totals,
-                            buckets: buckets, byModel: rows(models), byProject: rows(projects))
+                            buckets: buckets, byModel: rows(models), byProject: rows(projects),
+                            summarizedBefore: summarizedBefore.flatMap { interval.start < $0 ? $0 : nil })
     }
 
-    public func billingComparison(entries: [UsageEntry], now: Date, planPrice: Double?) -> BillingComparison {
+    public func billingComparison(entries: [UsageEntry], summaries: [WeeklySummary] = [], now: Date,
+                                  planPrice: Double?) -> BillingComparison {
         let interval = billingInterval(now: now)
         let cost = entries.lazy
             .filter { $0.timestamp >= interval.start && $0.timestamp < interval.end }
+            .compactMap { prices.cost(of: $0)?.total }
+            .reduce(0, +)
+            + summaries.lazy
+            .filter { $0.weekStart >= interval.start && $0.weekStart < interval.end }
             .compactMap { prices.cost(of: $0)?.total }
             .reduce(0, +)
         let elapsed = min(max(now.timeIntervalSince(interval.start) / interval.duration, 0), 1)

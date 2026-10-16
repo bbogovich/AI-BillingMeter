@@ -4,23 +4,31 @@ import Foundation
 /// every billed call it has ever seen in a cache file.
 ///
 /// The cache matters beyond speed: Claude Code deletes old transcripts (30 days by default),
-/// so a billing month can only be reported in full if earlier entries were kept.
+/// so a billing month can only be reported in full if earlier entries were kept. Calls older
+/// than the detail window are kept as weekly summaries (F-14), which bounds the cache's size.
 public actor TranscriptStore {
     private struct FileState: Codable {
         var offset: UInt64
         var inode: UInt64
     }
+    /// Format FMT.2. Version 2 adds `summaries` and `summarizedBefore`; version 1 files still load.
+    /// trace: R-CMUSE-007 <- F-14, F-3.CR-1
     private struct Cache: Codable {
         var version: Int
         var files: [String: FileState]
         var entries: [UsageEntry]
+        var summaries: [WeeklySummary]?
+        var summarizedBefore: Date?
     }
-    private static let cacheVersion = 1
+    private static let cacheVersion = 2
+    private static let readableVersions: Set<Int> = [1, 2]
 
     private let roots: [URL]
     private let cacheURL: URL
     private var files: [String: FileState] = [:]
     private var entries: [String: UsageEntry] = [:]
+    private var summaries: [WeeklySummary] = []
+    private var summarizedBefore: Date?
     private var loaded = false
 
     public init(roots: [URL], cacheURL: URL) {
@@ -56,6 +64,43 @@ public actor TranscriptStore {
         if !loaded { loadCache() }
         files.removeAll()
         return refresh()
+    }
+
+    /// Scans new transcript bytes, then summarizes every call older than the detail window.
+    /// Summarizing runs on each refresh, so a month leaves detail at the first refresh after it
+    /// falls out of the window. `summarizedBefore` only moves forward, so raising the policy never
+    /// recreates detail that was already summarized.
+    /// trace: R-CMUSE-014, R-CMUSE-016 <- F-14
+    public func refresh(now: Date, policy: HistoryPolicy, prices: PriceTable = .standard,
+                        calendar: Calendar = .current) -> UsageData {
+        _ = refresh()
+        let window = HistoryCompactor.windowStart(now: now, policy: policy, calendar: calendar)
+        let boundary = max(window, summarizedBefore ?? .distantPast)
+        let stale = entries.values.contains { $0.timestamp < boundary }
+        if stale || boundary != summarizedBefore {
+            let result = HistoryCompactor.compact(entries: Array(entries.values), summaries: summaries,
+                                                  before: boundary, policy: policy, calendar: calendar,
+                                                  prices: prices)
+            entries = Dictionary(uniqueKeysWithValues: result.entries.map { ($0.key, $0) })
+            summaries = result.summaries
+            summarizedBefore = boundary
+            saveCache()
+        }
+        return UsageData(entries: Array(entries.values), summaries: summaries, summarizedBefore: summarizedBefore)
+    }
+
+    /// `rescanAll()` followed by summarizing. Lines older than `summarizedBefore` are skipped
+    /// while reading, so calls already summarized are not counted twice.
+    public func rescanAll(now: Date, policy: HistoryPolicy, prices: PriceTable = .standard,
+                          calendar: Calendar = .current) -> UsageData {
+        if !loaded { loadCache() }
+        files.removeAll()
+        return refresh(now: now, policy: policy, prices: prices, calendar: calendar)
+    }
+
+    /// Size of the cache file in bytes, for the Settings status line.
+    public func cacheFileSize() -> Int {
+        ((try? FileManager.default.attributesOfItem(atPath: cacheURL.path))?[.size] as? NSNumber)?.intValue ?? 0
     }
 
     // MARK: - Scanning
@@ -96,6 +141,8 @@ public actor TranscriptStore {
 
         for line in complete.split(separator: 0x0A, omittingEmptySubsequences: true) {
             guard let entry = TranscriptLine.parse(Data(line), fallbackProject: fallbackProject) else { continue }
+            // trace: R-CMUSE-015 <- F-14 — a call before summarizedBefore is already in a summary.
+            if let cutoff = summarizedBefore, entry.timestamp < cutoff { continue }
             entries[entry.key] = entries[entry.key].map { $0.merged(with: entry) } ?? entry
         }
         files[path] = FileState(offset: start + UInt64(complete.count), inode: inode)
@@ -108,13 +155,16 @@ public actor TranscriptStore {
         loaded = true
         guard let data = try? Data(contentsOf: cacheURL),
               let cache = try? JSONDecoder.cache.decode(Cache.self, from: data),
-              cache.version == Self.cacheVersion else { return }
+              Self.readableVersions.contains(cache.version) else { return }
         files = cache.files
         entries = Dictionary(cache.entries.map { ($0.key, $0) }, uniquingKeysWith: { $0.merged(with: $1) })
+        summaries = cache.summaries ?? []
+        summarizedBefore = cache.summarizedBefore
     }
 
     private func saveCache() {
-        let cache = Cache(version: Self.cacheVersion, files: files, entries: Array(entries.values))
+        let cache = Cache(version: Self.cacheVersion, files: files, entries: Array(entries.values),
+                          summaries: summaries, summarizedBefore: summarizedBefore)
         try? FileManager.default.createDirectory(at: cacheURL.deletingLastPathComponent(),
                                                  withIntermediateDirectories: true)
         if let data = try? JSONEncoder.cache.encode(cache) {

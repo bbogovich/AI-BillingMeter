@@ -106,22 +106,46 @@ public struct PriceTable: Codable, Sendable {
 
     /// API cost of one call; nil when the model has no known price.
     public func cost(of e: UsageEntry) -> CostBreakdown? {
-        guard let p = price(for: e.model) else { return nil }
+        cost(model: e.model, input: e.inputTokens, output: e.outputTokens, write5m: e.cacheWrite5mTokens,
+             write1h: e.cacheWrite1hTokens, read: e.cacheReadTokens, webSearches: e.webSearches,
+             fast: e.fast, longContext: usesLongContextRate(e))
+    }
+
+    /// API cost of a weekly summary, at the current prices for its key's fast-mode and
+    /// long-context rates. Equals the sum of its calls' costs at those prices.
+    /// trace: R-CMCST-012 <- F-14
+    public func cost(of s: WeeklySummary) -> CostBreakdown? {
+        cost(model: s.model, input: s.inputTokens, output: s.outputTokens, write5m: s.cacheWrite5mTokens,
+             write1h: s.cacheWrite1hTokens, read: s.cacheReadTokens, webSearches: s.webSearches,
+             fast: s.fast, longContext: s.longContext)
+    }
+
+    /// Whether a call's prompt is above its model's long-context threshold. Decided per call,
+    /// so summaries record it in their key rather than recomputing it from totals.
+    /// trace: R-CMCST-012, R-CMUSE-012 <- F-14
+    public func usesLongContextRate(_ e: UsageEntry) -> Bool {
+        guard let threshold = price(for: e.model)?.longContextThreshold else { return false }
+        return e.promptTokens > threshold
+    }
+
+    private func cost(model: String, input: Int, output: Int, write5m: Int, write1h: Int, read: Int,
+                      webSearches: Int, fast: Bool, longContext: Bool) -> CostBreakdown? {
+        guard let p = price(for: model) else { return nil }
         var inRate = p.input, outRate = p.output, readRate = p.cacheRead
-        if let threshold = p.longContextThreshold, e.promptTokens > threshold {
+        if longContext {
             inRate = p.longContextInput ?? inRate
             outRate = p.longContextOutput ?? outRate
             readRate = p.longContextCacheRead ?? readRate
         }
-        let speed = e.fast ? p.fastMultiplier : 1
+        let speed = fast ? p.fastMultiplier : 1
         let m = 1.0 / 1_000_000
         var c = CostBreakdown()
-        c.input = Double(e.inputTokens) * inRate * m * speed
-        c.output = Double(e.outputTokens) * outRate * m * speed
-        c.cacheWrite = (Double(e.cacheWrite5mTokens) * p.cacheWrite5mMultiplier
-                        + Double(e.cacheWrite1hTokens) * p.cacheWrite1hMultiplier) * inRate * m * speed
-        c.cacheRead = Double(e.cacheReadTokens) * readRate * m * speed
-        c.webSearch = Double(e.webSearches) * webSearchPerThousand / 1000
+        c.input = Double(input) * inRate * m * speed
+        c.output = Double(output) * outRate * m * speed
+        c.cacheWrite = (Double(write5m) * p.cacheWrite5mMultiplier
+                        + Double(write1h) * p.cacheWrite1hMultiplier) * inRate * m * speed
+        c.cacheRead = Double(read) * readRate * m * speed
+        c.webSearch = Double(webSearches) * webSearchPerThousand / 1000
         return c
     }
 }
