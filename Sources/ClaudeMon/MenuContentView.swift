@@ -47,6 +47,7 @@ struct MenuContentView: View {
         }
         .padding(14)
         .frame(width: 400)
+        .fitsMenuBarWindow()
         .task { await model.refreshAll() }
     }
 
