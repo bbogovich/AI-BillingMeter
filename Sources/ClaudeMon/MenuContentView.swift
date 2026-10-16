@@ -21,6 +21,12 @@ struct MenuContentView: View {
             .labelsHidden()
 
             periodHeader(report)
+            if let before = report.summarizedBefore {
+                // trace: R-CMUI-014 <- F-14
+                Label("Includes weekly summaries before \(before.formatted(.dateTime.month(.abbreviated).day()))",
+                      systemImage: "calendar.badge.clock")
+                    .font(.caption2).foregroundStyle(.secondary)
+            }
             TotalsGrid(totals: report.totals)
 
             HStack {

@@ -20,6 +20,10 @@ enum MenuBarStyle: String, CaseIterable, Identifiable {
 @Observable
 final class AppModel {
     private(set) var entries: [UsageEntry] = []
+    /// Weekly summaries of calls older than the detail window (F-14).
+    private(set) var summaries: [WeeklySummary] = []
+    private(set) var summarizedBefore: Date?
+    private(set) var cacheBytes = 0
     private(set) var planStatus: PlanStatus?
     private(set) var planError: String?
     private(set) var lastScan: Date?
@@ -31,6 +35,14 @@ final class AppModel {
     // Settings, persisted in UserDefaults.
     var billingDay: Int { didSet { save(billingDay, "billingDay") } }
     var weekStart: WeekStart { didSet { save(weekStart.rawValue, "weekStart") } }
+    /// Months before the current one kept in full detail; older months become weekly summaries.
+    /// trace: R-CMUI-005, R-CMUSE-011 <- F-14, F-10.CR-1
+    var detailedHistoryMonths: Int {
+        didSet {
+            save(detailedHistoryMonths, "detailedHistoryMonths")
+            Task { await refreshTranscripts() }
+        }
+    }
     /// 0 means "use the list price of the detected plan".
     var planPriceOverride: Double { didSet { save(planPriceOverride, "planPriceOverride") } }
     var fetchPlanLimits: Bool {
@@ -61,6 +73,8 @@ final class AppModel {
         prices = PriceTable.loadOrInstall(at: support.appendingPathComponent("pricing.json"))
         billingDay = d.object(forKey: "billingDay") as? Int ?? 1
         weekStart = WeekStart(rawValue: d.string(forKey: "weekStart") ?? "") ?? .planReset
+        detailedHistoryMonths = HistoryPolicy(detailedMonths: d.object(forKey: "detailedHistoryMonths") as? Int ?? 1)
+            .detailedMonths
         planPriceOverride = d.object(forKey: "planPriceOverride") as? Double ?? 0
         fetchPlanLimits = d.object(forKey: "fetchPlanLimits") as? Bool ?? true
         planRefreshMinutes = d.object(forKey: "planRefreshMinutes") as? Int ?? 5
@@ -103,8 +117,13 @@ final class AppModel {
     func refreshTranscripts(full: Bool = false) async {
         guard !isScanning else { return }
         isScanning = true
-        let result = full ? await store.rescanAll() : await store.refresh()
-        entries = result
+        let policy = historyPolicy, prices = prices
+        let data = full ? await store.rescanAll(now: Date(), policy: policy, prices: prices)
+                        : await store.refresh(now: Date(), policy: policy, prices: prices)
+        entries = data.entries
+        summaries = data.summaries
+        summarizedBefore = data.summarizedBefore
+        cacheBytes = await store.cacheFileSize()
         lastScan = Date()
         now = Date()
         isScanning = false
@@ -139,8 +158,12 @@ final class AppModel {
                       planWeekStart: planStatus?.weeklyWindowStart)
     }
 
+    var historyPolicy: HistoryPolicy {
+        HistoryPolicy(detailedMonths: detailedHistoryMonths, firstWeekday: weekStart == .sunday ? 1 : 2)
+    }
+
     func report(_ period: ReportPeriod) -> PeriodReport {
-        builder.report(period, entries: entries, now: now)
+        builder.report(period, entries: entries, summaries: summaries, summarizedBefore: summarizedBefore, now: now)
     }
 
     var plan: Plan? { planStatus?.plan }
@@ -150,7 +173,7 @@ final class AppModel {
     }
 
     var billing: BillingComparison {
-        builder.billingComparison(entries: entries, now: now, planPrice: effectivePlanPrice)
+        builder.billingComparison(entries: entries, summaries: summaries, now: now, planPrice: effectivePlanPrice)
     }
 
     var sessionLimit: PlanLimit? { planStatus?.limits.first { $0.group == "session" } }

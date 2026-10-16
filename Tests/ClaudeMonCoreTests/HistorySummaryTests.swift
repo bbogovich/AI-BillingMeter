@@ -266,3 +266,55 @@ private func calls(_ d: UsageData) -> Int {
         #expect(d.entries.map(\.key) == ["m|r"])
     }
 }
+
+// Edge tests (P59 Expand): boundaries, invalid input, time zones. Tagged with the requirement they protect.
+@Suite struct HistoryEdgeTests {
+    let p = HistoryPolicy(detailedMonths: 1)
+
+    // edge: R-CMUSE-012
+    @Test func emptyInputStaysEmpty() {
+        let r = HistoryCompactor.compact(entries: [], summaries: [], before: day(2026, 9, 1, 0),
+                                         policy: p, calendar: cal, prices: .standard)
+        #expect(r.entries.isEmpty && r.summaries.isEmpty)
+    }
+
+    // edge: R-CMUSE-011
+    @Test func callExactlyAtWindowStartStaysDetailed() {
+        let atStart = call(day(2026, 9, 1, 0))
+        let r = HistoryCompactor.compact(entries: [atStart], summaries: [], before: day(2026, 9, 1, 0),
+                                         policy: p, calendar: cal, prices: .standard)
+        #expect(r.entries == [atStart] && r.summaries.isEmpty)
+    }
+
+    // edge: R-CMUSE-011
+    @Test func preferenceIsClampedToZeroThroughTwentyFour() {
+        #expect(HistoryPolicy(detailedMonths: -3).detailedMonths == 0)
+        #expect(HistoryPolicy(detailedMonths: 99).detailedMonths == 24)
+        #expect(HistoryPolicy(detailedMonths: 1, firstWeekday: 5).firstWeekday == 2)
+    }
+
+    // edge: R-CMCST-012
+    @Test func unpricedModelsStayUnpricedInSummaries() {
+        let r = HistoryCompactor.compact(entries: [call(day(2026, 8, 5), model: "mystery-model")], summaries: [],
+                                         before: day(2026, 9, 1, 0), policy: p, calendar: cal, prices: .standard)
+        #expect(PriceTable.standard.cost(of: r.summaries[0]) == nil)
+        let report = ReportBuilder(prices: .standard, calendar: cal, billingDay: 1)
+            .report(.billing, data: UsageData(entries: [], summaries: r.summaries), now: day(2026, 8, 20))
+        #expect(report.totals.unpricedTokens == r.summaries[0].totalTokens)
+    }
+
+    // edge: R-CMUSE-013
+    @Test func segmentOnNewYearsDayStartsTheYear() {
+        // 2027-01-01 is a Friday: its calendar week began in December, so the segment is clipped.
+        #expect(HistoryCompactor.segmentStart(of: day(2027, 1, 1), policy: p, calendar: cal) == day(2027, 1, 1, 0))
+        #expect(HistoryCompactor.segmentStart(of: day(2026, 12, 31), policy: p, calendar: cal) == day(2026, 12, 28, 0))
+    }
+
+    // edge: R-CMUSE-013
+    @Test func daylightSavingChangeDoesNotSplitAWeek() {
+        // US clocks fall back on 2026-11-01 (a Sunday): Nov 1 belongs to the segment that starts that day.
+        let a = HistoryCompactor.segmentStart(of: day(2026, 11, 1, 1), policy: p, calendar: cal)
+        let b = HistoryCompactor.segmentStart(of: day(2026, 11, 1, 23), policy: p, calendar: cal)
+        #expect(a == b && a == day(2026, 11, 1, 0))
+    }
+}
