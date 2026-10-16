@@ -1,0 +1,25 @@
+{
+  "project": "ClaudeMon",
+  "kind": "implementation",
+  "_comment": "Implementation of ClaudeMon. Upstream is the consolidated repository ../ClaudeMon-Definition (definition + design + specification, process rev 9 P38). The implementation site lives on the orphan `docs` branch (P56). Artifacts were created retroactively on 2026-10-15 as a lifecycle case study.",
+  "forge": "none",
+  "spec": "../ClaudeMon-Definition/docs/spec",
+  "definition": "../ClaudeMon-Definition/docs",
+  "specVersion": "1.3.0",
+  "definitionVersion": "1.2.0",
+  "docsBranch": "docs",
+  "review": "optional",
+  "coverage": {"changedLines": 90, "changedBranches": 80},
+  "roles": {
+    "developer": ["@brian"],
+    "architect": ["@brian"],
+    "qa-tester": ["@brian"],
+    "product-owner": ["@brian"]
+  },
+  "labels": [
+    {"name": "limits", "description": "Plan limits client and presentation (CMLIM)"},
+    {"name": "usage", "description": "Transcript accounting, reports and charts (CMUSE, CMRPT)"},
+    {"name": "cost", "description": "Pricing and plan comparison (CMCST)"},
+    {"name": "app", "description": "Menu bar app, settings, icon, terminal report (CMUI, CMCLI)"}
+  ]
+}

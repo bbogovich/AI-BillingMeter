@@ -48,6 +48,13 @@ Things to know:
 - What the menu bar shows: limits, tokens today, cost today, or the icon only
 - Launch at login
 
+## Lifecycle artifacts
+
+ClaudeMon is a worked case study for the SpecItOut process (proposal rev 9). Its definition, design and
+specification live in `../ClaudeMon-Definition`, and the implementation documentation site (features as built,
+architecture, code map, testing, reviews, releases) lives on this repository's `docs` branch.
+`.specitout/sdd.json` pins definition 1.2.0 and spec 1.3.0.
+
 ## Layout
 
 ```
