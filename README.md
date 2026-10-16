@@ -56,4 +56,5 @@ Sources/ClaudeMon         SwiftUI menu-bar app (`--snapshot <dir>` renders the p
 Sources/claudemon-report  terminal report
 Tests/ClaudeMonCoreTests
 scripts/build-app.sh
+scripts/make-icon.swift   draws Resources/AppIcon.icns (run: xcrun swift scripts/make-icon.swift)
 ```

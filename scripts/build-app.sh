@@ -16,6 +16,7 @@ rm -rf "$app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 cp "$bin/ClaudeMon" "$app/Contents/MacOS/ClaudeMon"
 cp Resources/Info.plist "$app/Contents/Info.plist"
+cp Resources/AppIcon.icns "$app/Contents/Resources/AppIcon.icns"
 cp "$bin/claudemon-report" dist/claudemon-report
 
 # Ad-hoc signature. macOS ties the Keychain "Always Allow" grant to the signature, so
@@ -29,6 +30,7 @@ if [[ "${1:-}" == "--install" ]]; then
     pkill -x ClaudeMon 2>/dev/null || true
     rm -rf "$dest/ClaudeMon.app"
     cp -R "$app" "$dest/"
+    sleep 1 # launching right after pkill can fail with LaunchServices error -600
     open "$dest/ClaudeMon.app"
     echo "Installed and launched $dest/ClaudeMon.app"
 fi
