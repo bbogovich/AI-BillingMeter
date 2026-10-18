@@ -2,3 +2,6 @@
 dist/
 .swiftpm/
 .DS_Store
+Build/
+xcuserdata/
+*.xcuserstate
