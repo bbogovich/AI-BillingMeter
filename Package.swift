@@ -6,6 +6,8 @@ let package = Package(
     platforms: [.macOS(.v14)],
     products: [
         .executable(name: "ClaudeMon", targets: ["ClaudeMon"]),
+        // Linked by the Xcode project's app, tool and test targets (ClaudeMon.xcodeproj).
+        .library(name: "ClaudeMonCore", targets: ["ClaudeMonCore"]),
     ],
     targets: [
         // Pure logic: transcript parsing, pricing, aggregation, plan-limit client.

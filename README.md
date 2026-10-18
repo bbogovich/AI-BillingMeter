@@ -10,6 +10,15 @@ No third-party dependencies. It uses SwiftUI, Swift Charts, Security and Service
 
 ## Build and install
 
+**In Xcode:** open `ClaudeMon.xcodeproj` and run the **ClaudeMonApp** scheme (⌘R). ⌘U runs the unit tests.
+The project has three targets: the app, the `claudemon-report` tool, and the tests. All three link
+`ClaudeMonCore` from this repository's Swift package. Source folders are synchronized, so new files under
+`Sources/ClaudeMon`, `Sources/claudemon-report` and `Tests/ClaudeMonCoreTests` are picked up without editing the
+project. Signing is "Sign to Run Locally"; choose a team in Signing & Capabilities if you want a stable identity
+(macOS then keeps the Keychain "Always Allow" across rebuilds).
+
+**From the terminal:**
+
 ```sh
 scripts/build-app.sh            # builds dist/ClaudeMon.app and dist/claudemon-report
 scripts/build-app.sh --install  # also copies to ~/Applications and launches it
