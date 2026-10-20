@@ -1,12 +1,11 @@
 import AppKit
 import SwiftUI
 
-/// Keeps the `MenuBarExtra` window the height of its content, anchored under the menu bar.
+/// Keeps the usage panel the height of its content, anchored under the menu bar.
 ///
-/// A `.window`-style MenuBarExtra grows when its content grows but never shrinks back.
-/// Shorter content is then centred in the oversized window, so the popover appears to
-/// drop away from the menu bar. This resizes the window to the measured content height
-/// and keeps its top edge where it was.
+/// The window does not shrink when its content does, so shorter content would be centred in
+/// an oversized window and the panel would appear to drop away from the menu bar. This
+/// resizes the window to the measured content height and keeps its top edge where it was.
 extension View {
     func fitsMenuBarWindow() -> some View {
         modifier(WindowFitter())

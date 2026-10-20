@@ -20,9 +20,6 @@
     <string>1</string>
     <key>LSMinimumSystemVersion</key>
     <string>14.0</string>
-    <!-- Menu-bar only: no Dock icon, no app menu. -->
-    <key>LSUIElement</key>
-    <true/>
     <key>NSHighResolutionCapable</key>
     <true/>
     <key>NSHumanReadableCopyright</key>

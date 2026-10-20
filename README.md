@@ -68,7 +68,7 @@ architecture, code map, testing, reviews, releases) lives on this repository's `
 
 ```
 Sources/ClaudeMonCore     parsing, pricing, reports, plan-limit client (tested)
-Sources/ClaudeMon         SwiftUI menu-bar app (`--snapshot <dir>` renders the popover to PNGs)
+Sources/ClaudeMon         Menu-bar + Dock app (AppKit status item, SwiftUI views; `--snapshot <dir>` renders the panel to PNGs)
 Sources/claudemon-report  terminal report
 Tests/ClaudeMonCoreTests
 scripts/build-app.sh
