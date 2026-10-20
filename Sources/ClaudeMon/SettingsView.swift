@@ -29,7 +29,7 @@ struct SettingsView: View {
             Section("Plan limits") {
                 Toggle("Fetch session and weekly limits from claude.ai", isOn: $model.fetchPlanLimits)
                 Stepper("Refresh every \(model.planRefreshMinutes) min", value: $model.planRefreshMinutes, in: 1...60)
-                Text("Uses the login Claude Code stores in your Keychain (read-only; the token is never refreshed or sent anywhere but api.anthropic.com). macOS asks once for Keychain access — choose Always Allow.")
+                Text("Uses the login Claude Code stores in your Keychain, read through the same `security` tool Claude Code uses, so macOS does not ask for access. Read-only: the token is never refreshed or sent anywhere but api.anthropic.com.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section("Menu bar") {
