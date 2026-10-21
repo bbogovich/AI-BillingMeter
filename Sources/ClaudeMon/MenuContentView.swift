@@ -3,7 +3,7 @@ import SwiftUI
 
 struct MenuContentView: View {
     @Bindable var model: AppModel
-    @Environment(\.openWindow) private var openWindow
+    @Environment(\.showSettings) private var showSettings
     @AppStorage("selectedPeriod") private var period: ReportPeriod = .today
     @AppStorage("chartMetric") private var metric: ChartMetric = .tokens
     @AppStorage("breakdown") private var breakdownByProject = false
@@ -108,10 +108,7 @@ struct MenuContentView: View {
                     .font(.caption2).foregroundStyle(.secondary)
             }
             Spacer()
-            Button("Settings…") {
-                openWindow(id: "settings")
-                NSApp.activate(ignoringOtherApps: true)
-            }
+            Button("Settings…") { showSettings() }
             Button("Quit") { NSApp.terminate(nil) }
         }
         .controlSize(.small)

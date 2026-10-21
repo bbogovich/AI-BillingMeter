@@ -1,5 +1,4 @@
 import Foundation
-import Security
 
 /// One plan limit as reported by claude.ai (the same data `/usage` shows in Claude Code).
 public struct PlanLimit: Identifiable, Hashable, Sendable {
@@ -107,17 +106,22 @@ public enum PlanUsageClient {
         var plan: Plan
     }
 
+    /// Reads the item through `/usr/bin/security`, the tool Claude Code itself uses to write it.
+    ///
+    /// Claude Code saves its login with `security add-generic-password -U` (deleting the item
+    /// first in some paths), so the item's access list trusts `security` and nothing else. Every
+    /// token refresh rewrites the item and drops any "Always Allow" granted to ClaudeMon, which
+    /// is why a direct `SecItemCopyMatching` read prompted again every few hours. Reading through
+    /// `security` needs no prompt and does not change the item (R-CMLIM-002).
     static func readCredentials() throws -> Credentials {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: keychainService,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne,
-        ]
-        var item: CFTypeRef?
-        guard SecItemCopyMatching(query as CFDictionary, &item) == errSecSuccess,
-              let data = item as? Data,
-              let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+        guard let data = runSecurity(["find-generic-password", "-s", keychainService, "-w"]) else {
+            throw PlanUsageError.noCredentials
+        }
+        return try parseCredentials(data)
+    }
+
+    static func parseCredentials(_ data: Data) throws -> Credentials {
+        guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let oauth = root["claudeAiOauth"] as? [String: Any],
               let token = oauth["accessToken"] as? String
         else { throw PlanUsageError.noCredentials }
@@ -125,6 +129,27 @@ public enum PlanUsageClient {
         return Credentials(accessToken: token, expiresAt: expires,
                            plan: Plan(subscriptionType: oauth["subscriptionType"] as? String,
                                       rateLimitTier: oauth["rateLimitTier"] as? String))
+    }
+
+    /// Runs `/usr/bin/security` and returns its standard output, or nil if it fails or takes
+    /// longer than 10 s (it would only wait that long on a Keychain dialog).
+    private static func runSecurity(_ arguments: [String]) -> Data? {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/security")
+        process.arguments = arguments
+        let output = Pipe()
+        process.standardOutput = output
+        process.standardError = FileHandle.nullDevice
+        process.standardInput = FileHandle.nullDevice
+        do { try process.run() } catch { return nil }
+        let timeout = DispatchWorkItem { process.terminate() }
+        DispatchQueue.global().asyncAfter(deadline: .now() + 10, execute: timeout)
+        let data = output.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
+        timeout.cancel()
+        guard process.terminationStatus == 0 else { return nil }
+        // `-w` prints the secret followed by a newline.
+        return data.last == UInt8(ascii: "\n") ? data.dropLast() : data
     }
 
     public static func fetch() async throws -> PlanStatus {

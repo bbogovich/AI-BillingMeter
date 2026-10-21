@@ -158,6 +158,15 @@ private func entry(_ s: String) -> UsageEntry? {
         #expect(s.limits.count == 2)
         #expect(s.weeklyWindowStart != nil)
     }
+
+    @Test func parsesKeychainCredentials() throws {
+        let json = #"{"claudeAiOauth":{"accessToken":"tok","refreshToken":"r","expiresAt":1790000000000,"subscriptionType":"max","rateLimitTier":"default_claude_max_5x"}}"#
+        let c = try PlanUsageClient.parseCredentials(Data(json.utf8))
+        #expect(c.accessToken == "tok")
+        #expect(c.expiresAt == Date(timeIntervalSince1970: 1_790_000_000))
+        #expect(c.plan.displayName == "Max 5x")
+        #expect(throws: PlanUsageError.self) { try PlanUsageClient.parseCredentials(Data(#"{"other":{}}"#.utf8)) }
+    }
 }
 
 @Suite struct StoreTests {
