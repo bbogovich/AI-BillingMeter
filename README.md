@@ -1,12 +1,14 @@
 # AI Billing Meter
 
-A native macOS menu-bar app that shows Claude usage without asking Claude Code for `/usage`:
+A native macOS menu-bar and Dock app that shows Claude Code usage and what it would cost at API rates
+(formerly ClaudeMon; the first launch moves ClaudeMon's history and settings over):
 
 - **Plan limits**: the 5-hour session limit and the weekly limits, with % used and remaining and reset times. These are the same numbers claude.ai and `/usage` show.
-- **Token consumption**: today (per hour), this week (per day) and the billing month (per day). Shown as text totals (input / output / cache write / cache read) and as stacked charts by model family.
+- **Token consumption**: today (per hour), this week (per day), the billing month (per day) and all history (per month; scrolls sideways past twelve months). Shown as text totals (input / output / cache write / cache read) and as stacked charts by model family.
+- **Per-project totals, kept permanently**: each project is the directory a Claude Code session was started in, so unrelated folders with the same name stay apart. History outlives Claude Code's transcript cleanup; months older than the detail window are kept as weekly totals per model and project.
 - **Cost**: what the same usage would have cost at Anthropic API list prices, compared with the flat plan price. Includes a projection for the whole billing month.
 
-No third-party dependencies. It uses SwiftUI, Swift Charts, Security and ServiceManagement.
+No third-party dependencies. It uses AppKit, SwiftUI, Swift Charts and ServiceManagement, and reads the Claude Code login through `/usr/bin/security`.
 
 ## Build and install
 
@@ -14,8 +16,7 @@ No third-party dependencies. It uses SwiftUI, Swift Charts, Security and Service
 The project has three targets: the app, the `billing-meter` tool, and the tests. All three link
 `BillingMeterCore` from this repository's Swift package. Source folders are synchronized, so new files under
 `Sources/AIBillingMeter`, `Sources/billing-meter` and `Tests/BillingMeterCoreTests` are picked up without editing the
-project. Signing is "Sign to Run Locally"; choose a team in Signing & Capabilities if you want a stable identity
-(macOS then keeps the Keychain "Always Allow" across rebuilds).
+project. Signing is "Sign to Run Locally".
 
 **From the terminal:**
 
@@ -29,7 +30,7 @@ Use `xcrun swift`, not a bare `swift`. If a swiftly toolchain comes earlier on `
 
 Turn on **Settings → Launch at login** to have it start with macOS.
 
-`dist/billing-meter` prints the same totals in the terminal, for example `billing-meter --billing-day 15 --plan-price 100`.
+`dist/billing-meter` prints the same totals in the terminal, for example `billing-meter --billing-day 15 --plan-price 100`. The all-time section lists every project's total; `--projects` adds project lists to the other periods.
 
 ## Where the numbers come from
 

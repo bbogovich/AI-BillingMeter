@@ -2,12 +2,15 @@ import Foundation
 
 public enum ReportPeriod: String, CaseIterable, Identifiable, Sendable {
     case today, week, billing
+    /// Everything recorded, by calendar month (F-15).
+    case all
     public var id: String { rawValue }
     public var title: String {
         switch self {
         case .today: "Today"
         case .week: "Week"
         case .billing: "Billing month"
+        case .all: "All"
         }
     }
 }
@@ -73,6 +76,8 @@ public struct UsageBucket: Identifiable, Hashable, Sendable {
 public struct BreakdownRow: Identifiable, Hashable, Sendable {
     public var name: String
     public var totals: TokenTotals
+    /// For a project, the directory its sessions were started in, when known.
+    public var detail: String? = nil
     public var id: String { name }
 }
 
@@ -115,6 +120,8 @@ public struct ReportBuilder: Sendable {
     public var weekStart: WeekStart
     /// Start of the plan's weekly window, when known from claude.ai.
     public var planWeekStart: Date?
+    /// Directory of each Claude Code project folder, for project names (`UsageData.projectPaths`).
+    public var projectPaths: [String: String] = [:]
 
     public init(prices: PriceTable, calendar: Calendar = .current, billingDay: Int = 1,
                 weekStart: WeekStart = .planReset, planWeekStart: Date? = nil) {
@@ -135,7 +142,18 @@ public struct ReportBuilder: Sendable {
             return weekInterval(now: now)
         case .billing:
             return billingInterval(now: now)
+        case .all:
+            return calendar.dateInterval(of: .month, for: now)!
         }
+    }
+
+    /// From the first month with any usage to the end of the current month.
+    func allInterval(entries: [UsageEntry], summaries: [WeeklySummary], now: Date) -> DateInterval {
+        let current = calendar.dateInterval(of: .month, for: now)!
+        let earliest = [entries.lazy.map(\.timestamp).min(), summaries.lazy.map(\.weekStart).min()]
+            .compactMap { $0 }.min()
+        guard let earliest, earliest < current.start else { return current }
+        return DateInterval(start: calendar.dateInterval(of: .month, for: earliest)!.start, end: current.end)
     }
 
     func weekInterval(now: Date) -> DateInterval {
@@ -162,24 +180,35 @@ public struct ReportBuilder: Sendable {
     /// week segment starts inside it, and is charted at that start.
     /// trace: R-CMRPT-012, R-CMRPT-013 <- F-14
     public func report(_ period: ReportPeriod, data: UsageData, now: Date) -> PeriodReport {
-        report(period, entries: data.entries, summaries: data.summaries,
-               summarizedBefore: data.summarizedBefore, now: now)
+        var builder = self
+        builder.projectPaths.merge(data.projectPaths) { mine, _ in mine }
+        return builder.report(period, entries: data.entries, summaries: data.summaries,
+                              summarizedBefore: data.summarizedBefore, now: now)
     }
 
     public func report(_ period: ReportPeriod, entries: [UsageEntry], summaries: [WeeklySummary] = [],
                        summarizedBefore: Date? = nil, now: Date) -> PeriodReport {
-        let interval = interval(for: period, now: now)
-        let unit: Calendar.Component = period == .today ? .hour : .day
+        let interval = period == .all
+            ? allInterval(entries: entries, summaries: summaries, now: now)
+            : interval(for: period, now: now)
+        let unit: Calendar.Component = switch period {
+        case .today: .hour
+        case .all: .month
+        case .week, .billing: .day
+        }
         var totals = TokenTotals()
         var models: [String: TokenTotals] = [:]
         var projects: [String: TokenTotals] = [:]
+        var projectNames: [String: String] = [:]
         var bucketMap: [Date: [String: (Int, Double)]] = [:]
 
         for e in entries where e.timestamp >= interval.start && e.timestamp < interval.end {
             let c = prices.cost(of: e)
             totals.add(e, cost: c)
             models[e.model, default: TokenTotals()].add(e, cost: c)
-            projects[e.project.isEmpty ? "(unknown)" : e.project, default: TokenTotals()].add(e, cost: c)
+            let pk = ProjectDirectory.key(projectID: e.projectID, project: e.project)
+            projects[pk, default: TokenTotals()].add(e, cost: c)
+            projectNames[pk] = projectNames[pk] ?? e.project
             let b = calendar.dateInterval(of: unit, for: e.timestamp)!.start
             let fam = Self.family(of: e.model)
             let prev = bucketMap[b, default: [:]][fam] ?? (0, 0)
@@ -189,7 +218,9 @@ public struct ReportBuilder: Sendable {
             let c = prices.cost(of: s)
             totals.add(s, cost: c)
             models[s.model, default: TokenTotals()].add(s, cost: c)
-            projects[s.project.isEmpty ? "(unknown)" : s.project, default: TokenTotals()].add(s, cost: c)
+            let pk = ProjectDirectory.key(projectID: s.projectID, project: s.project)
+            projects[pk, default: TokenTotals()].add(s, cost: c)
+            projectNames[pk] = projectNames[pk] ?? s.project
             let b = calendar.dateInterval(of: unit, for: s.weekStart)!.start
             let fam = Self.family(of: s.model)
             let prev = bucketMap[b, default: [:]][fam] ?? (0, 0)
@@ -200,15 +231,20 @@ public struct ReportBuilder: Sendable {
             fams.map { UsageBucket(start: start, family: $0.key, tokens: $0.value.0, cost: $0.value.1) }
         }.sorted { ($0.start, $0.family) < ($1.start, $1.family) }
 
-        func rows(_ d: [String: TokenTotals]) -> [BreakdownRow] {
-            d.map { BreakdownRow(name: $0.key, totals: $0.value) }
-                .sorted { ($0.totals.cost.total, $0.totals.total) > ($1.totals.cost.total, $1.totals.total) }
+        func rows(_ d: [String: TokenTotals], names: [String: String] = [:],
+                  details: [String: String] = [:]) -> [BreakdownRow] {
+            d.map { BreakdownRow(name: names[$0.key] ?? $0.key, totals: $0.value, detail: details[$0.key]) }
+                .sorted { ($0.totals.cost.total, $0.totals.total, $1.name) > ($1.totals.cost.total, $1.totals.total, $0.name) }
         }
+        // trace: F-16 — one row per project folder, named uniquely.
+        let names = ProjectDirectory.displayNames(keys: Set(projects.keys), paths: projectPaths,
+                                                  fallbackNames: projectNames.mapValues { $0.isEmpty ? "(unknown)" : $0 })
         let domainStart = calendar.dateInterval(of: unit, for: interval.start)!.start
         let lastInstant = interval.end.addingTimeInterval(-1)
         let domainEnd = calendar.dateInterval(of: unit, for: lastInstant)!.end
         return PeriodReport(period: period, interval: interval, chartDomain: domainStart...domainEnd, bucketUnit: unit, totals: totals,
-                            buckets: buckets, byModel: rows(models), byProject: rows(projects),
+                            buckets: buckets, byModel: rows(models),
+                            byProject: rows(projects, names: names, details: projectPaths),
                             summarizedBefore: summarizedBefore.flatMap { interval.start < $0 ? $0 : nil })
     }
 

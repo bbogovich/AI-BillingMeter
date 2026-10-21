@@ -11,7 +11,9 @@ public actor TranscriptStore {
         var offset: UInt64
         var inode: UInt64
     }
-    /// Format FMT.2. Version 2 adds `summaries` and `summarizedBefore`; version 1 files still load.
+    /// Format FMT.2. Version 2 adds `summaries` and `summarizedBefore`; version 3 adds
+    /// `projectPaths` and `projectID` on entries and summaries. Versions 1 and 2 still load, and
+    /// are rescanned once so calls whose transcripts still exist gain their project folder.
     /// trace: R-CMUSE-007 <- F-14, F-3.CR-1
     private struct Cache: Codable {
         var version: Int
@@ -19,9 +21,10 @@ public actor TranscriptStore {
         var entries: [UsageEntry]
         var summaries: [WeeklySummary]?
         var summarizedBefore: Date?
+        var projectPaths: [String: String]?
     }
-    private static let cacheVersion = 2
-    private static let readableVersions: Set<Int> = [1, 2]
+    private static let cacheVersion = 3
+    private static let readableVersions: Set<Int> = [1, 2, 3]
 
     private let roots: [URL]
     private let cacheURL: URL
@@ -29,7 +32,10 @@ public actor TranscriptStore {
     private var entries: [String: UsageEntry] = [:]
     private var summaries: [WeeklySummary] = []
     private var summarizedBefore: Date?
+    private var projectPaths: [String: String] = [:]
     private var loaded = false
+    /// Set when an older cache was loaded: the next refresh rereads every transcript.
+    private var needsBackfill = false
 
     public init(roots: [URL], cacheURL: URL) {
         self.roots = roots
@@ -50,9 +56,13 @@ public actor TranscriptStore {
     /// Scans new transcript bytes and returns all known entries.
     public func refresh() -> [UsageEntry] {
         if !loaded { loadCache() }
+        if needsBackfill {
+            files.removeAll()
+            needsBackfill = false
+        }
         var changed = false
-        for url in transcriptFiles() {
-            if scan(url) { changed = true }
+        for (url, projectID) in transcriptFiles() {
+            if scan(url, projectID: projectID) { changed = true }
         }
         if changed { saveCache() }
         return Array(entries.values)
@@ -86,7 +96,8 @@ public actor TranscriptStore {
             summarizedBefore = boundary
             saveCache()
         }
-        return UsageData(entries: Array(entries.values), summaries: summaries, summarizedBefore: summarizedBefore)
+        return UsageData(entries: Array(entries.values), summaries: summaries, summarizedBefore: summarizedBefore,
+                         projectPaths: projectPaths)
     }
 
     /// `rescanAll()` followed by summarizing. Lines older than `summarizedBefore` are skipped
@@ -105,21 +116,26 @@ public actor TranscriptStore {
 
     // MARK: - Scanning
 
-    private func transcriptFiles() -> [URL] {
+    /// Every transcript, with the project folder it is in: the first path component under the
+    /// root, so subagent transcripts (`<project>/<session>/subagents/…`) count toward the project.
+    private func transcriptFiles() -> [(URL, String)] {
         let fm = FileManager.default
-        var result: [URL] = []
+        var result: [(URL, String)] = []
         for root in roots where fm.fileExists(atPath: root.path) {
             guard let e = fm.enumerator(at: root, includingPropertiesForKeys: [.isRegularFileKey],
                                         options: [.skipsHiddenFiles]) else { continue }
+            let rootDepth = root.standardizedFileURL.pathComponents.count
             for case let url as URL in e where url.pathExtension == "jsonl" {
-                result.append(url)
+                let parts = url.standardizedFileURL.pathComponents
+                guard parts.count > rootDepth + 1 else { continue }
+                result.append((url, parts[rootDepth]))
             }
         }
         return result
     }
 
     /// Reads complete lines appended since the last scan. Returns true if anything was read.
-    private func scan(_ url: URL) -> Bool {
+    private func scan(_ url: URL, projectID: String) -> Bool {
         let path = url.path
         guard let attrs = try? FileManager.default.attributesOfItem(atPath: path),
               let size = (attrs[.size] as? NSNumber)?.uint64Value else { return false }
@@ -137,10 +153,15 @@ public actor TranscriptStore {
         // Only consume up to the last newline; a trailing partial line is read next time.
         guard let lastNewline = data.lastIndex(of: 0x0A) else { return false }
         let complete = data[data.startIndex...lastNewline]
-        let fallbackProject = url.deletingLastPathComponent().lastPathComponent
+        let fallbackProject = projectPaths[projectID].map { URL(fileURLWithPath: $0).lastPathComponent } ?? projectID
 
         for line in complete.split(separator: 0x0A, omittingEmptySubsequences: true) {
-            guard let entry = TranscriptLine.parse(Data(line), fallbackProject: fallbackProject) else { continue }
+            guard let (entry, cwd) = TranscriptLine.parseLine(Data(line), fallbackProject: fallbackProject,
+                                                              projectID: projectID) else { continue }
+            // trace: F-16 — the folder is named after the directory the session started in.
+            if projectPaths[projectID] == nil, let cwd, ProjectDirectory.folderName(for: cwd) == projectID {
+                projectPaths[projectID] = cwd
+            }
             // trace: R-CMUSE-015 <- F-14 — a call before summarizedBefore is already in a summary.
             if let cutoff = summarizedBefore, entry.timestamp < cutoff { continue }
             entries[entry.key] = entries[entry.key].map { $0.merged(with: entry) } ?? entry
@@ -153,18 +174,33 @@ public actor TranscriptStore {
 
     private func loadCache() {
         loaded = true
-        guard let data = try? Data(contentsOf: cacheURL),
-              let cache = try? JSONDecoder.cache.decode(Cache.self, from: data),
-              Self.readableVersions.contains(cache.version) else { return }
+        guard let data = try? Data(contentsOf: cacheURL) else { return }
+        guard let cache = try? JSONDecoder.cache.decode(Cache.self, from: data),
+              Self.readableVersions.contains(cache.version) else {
+            // The cache is the only copy of usage whose transcripts Claude Code has deleted, so a
+            // file this build cannot read (damaged, or written by a newer build) is set aside, not
+            // overwritten. trace: F-16
+            setAsideUnreadableCache()
+            return
+        }
         files = cache.files
         entries = Dictionary(cache.entries.map { ($0.key, $0) }, uniquingKeysWith: { $0.merged(with: $1) })
         summaries = cache.summaries ?? []
         summarizedBefore = cache.summarizedBefore
+        projectPaths = cache.projectPaths ?? [:]
+        needsBackfill = cache.version < 3
+    }
+
+    private func setAsideUnreadableCache() {
+        let stamp = ISO8601DateFormatter().string(from: Date()).replacingOccurrences(of: ":", with: "-")
+        let aside = cacheURL.deletingPathExtension()
+            .appendingPathExtension("unreadable-\(stamp).json")
+        try? FileManager.default.moveItem(at: cacheURL, to: aside)
     }
 
     private func saveCache() {
         let cache = Cache(version: Self.cacheVersion, files: files, entries: Array(entries.values),
-                          summaries: summaries, summarizedBefore: summarizedBefore)
+                          summaries: summaries, summarizedBefore: summarizedBefore, projectPaths: projectPaths)
         try? FileManager.default.createDirectory(at: cacheURL.deletingLastPathComponent(),
                                                  withIntermediateDirectories: true)
         if let data = try? JSONEncoder.cache.encode(cache) {

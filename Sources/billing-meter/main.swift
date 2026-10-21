@@ -1,20 +1,23 @@
 import BillingMeterCore
 import Foundation
 
-// Usage: billing-meter [--billing-day N] [--plan-price USD] [--no-cache]
-// Prints today / week / billing-month totals computed by the same code the app uses.
+// Usage: billing-meter [--billing-day N] [--plan-price USD] [--no-cache] [--projects]
+// Prints today / week / billing-month / all-time totals computed by the same code the app uses.
+// All-time lists every project; --projects lists projects for the other periods too.
 
 var billingDay = 1
 var planPrice: Double?
 var useCache = true
+var showProjects = false
 var args = CommandLine.arguments.dropFirst().makeIterator()
 while let a = args.next() {
     switch a {
     case "--billing-day": billingDay = Int(args.next() ?? "") ?? 1
     case "--plan-price": planPrice = Double(args.next() ?? "")
     case "--no-cache": useCache = false
+    case "--projects": showProjects = true
     default:
-        print("usage: billing-meter [--billing-day N] [--plan-price USD] [--no-cache]")
+        print("usage: billing-meter [--billing-day N] [--plan-price USD] [--no-cache] [--projects]")
         exit(2)
     }
 }
@@ -49,6 +52,14 @@ for p in ReportPeriod.allCases {
     print("  total \(tok(t.total))  input \(tok(t.input))  output \(tok(t.output))  cache-write \(tok(t.cacheWrite))  cache-read \(tok(t.cacheRead))")
     print("  requests \(t.requests)  API cost \(usd(t.cost.total))" + (t.unpricedTokens > 0 ? "  unpriced tokens \(tok(t.unpricedTokens))" : ""))
     for m in r.byModel { print("    \(m.name): \(tok(m.totals.total)) tokens, \(usd(m.totals.cost.total))") }
+    if p == .all || showProjects {
+        // trace: F-16 — every project's total, with the directory its sessions started in.
+        print("  by project:")
+        for row in r.byProject {
+            print("    \(row.name): \(usd(row.totals.cost.total)), \(tok(row.totals.total)) tokens" +
+                  (row.detail.map { "  (\($0))" } ?? ""))
+        }
+    }
 }
 let b = builder.billingComparison(entries: entries, summaries: data.summaries, now: now, planPrice: planPrice)
 print("\nBilling: \(usd(b.apiCostToDate)) so far, projected \(usd(b.projectedApiCost))" +

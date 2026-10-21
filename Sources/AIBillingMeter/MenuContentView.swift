@@ -30,7 +30,7 @@ struct MenuContentView: View {
             TotalsGrid(totals: report.totals)
 
             HStack {
-                Text(report.bucketUnit == .hour ? "Per hour" : "Per day")
+                Text(report.bucketUnit == .hour ? "Per hour" : report.bucketUnit == .month ? "Per month" : "Per day")
                     .font(.caption).foregroundStyle(.secondary)
                 Spacer()
                 Picker("Metric", selection: $metric) {
@@ -46,8 +46,9 @@ struct MenuContentView: View {
                 BillingSection(billing: model.billing, planName: model.plan?.displayName)
             }
 
+            // trace: F-15, F-16 — All lists every project, so each one's total cost can be found.
             BreakdownSection(rows: breakdownByProject ? report.byProject : report.byModel,
-                             byProject: $breakdownByProject)
+                             byProject: $breakdownByProject, showAll: period == .all)
             Divider()
             footer
         }
@@ -84,6 +85,8 @@ struct MenuContentView: View {
         case .week, .billing:
             "\(i.start.formatted(.dateTime.month(.abbreviated).day().hour())) – " +
             "\(i.end.formatted(.dateTime.month(.abbreviated).day().hour()))"
+        case .all:
+            "Since \(i.start.formatted(.dateTime.month(.wide).year()))"
         }
         return HStack(alignment: .firstTextBaseline) {
             Text(Format.tokens(r.totals.total))
@@ -242,6 +245,8 @@ struct BillingSection: View {
 struct BreakdownSection: View {
     let rows: [BreakdownRow]
     @Binding var byProject: Bool
+    /// List every row (scrolling past a few) instead of the top six.
+    var showAll = false
 
     var body: some View {
         if !rows.isEmpty {
@@ -252,20 +257,36 @@ struct BreakdownSection: View {
                     Button(byProject ? "Show models" : "Show projects") { byProject.toggle() }
                         .buttonStyle(.link).font(.caption)
                 }
-                ForEach(rows.prefix(6)) { r in
-                    HStack {
-                        if !byProject {
-                            Circle()
-                                .fill(Theme.color(forFamily: ReportBuilder.family(of: r.name)))
-                                .frame(width: 7, height: 7)
-                        }
-                        Text(r.name).lineLimit(1).truncationMode(.middle)
-                        Spacer()
-                        Text(Format.tokens(r.totals.total)).monospacedDigit().foregroundStyle(.secondary)
-                        Text(Format.usd(r.totals.cost.total)).monospacedDigit().frame(width: 70, alignment: .trailing)
-                    }
-                    .font(.caption)
+                if showAll && rows.count > 6 {
+                    // Fixed height, so the panel does not grow with the number of projects.
+                    ScrollView { list(rows[...]).padding(.trailing, 12) }
+                        .frame(height: 6 * 17)
+                    Text("\(rows.count) \(byProject ? "projects" : "models") · total \(Format.usd(rows.map(\.totals.cost.total).reduce(0, +)))")
+                        .font(.caption2).foregroundStyle(.secondary)
+                } else {
+                    list(rows.prefix(6))
                 }
+            }
+        }
+    }
+
+    private func list(_ rows: ArraySlice<BreakdownRow>) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            ForEach(rows) { r in
+                HStack {
+                    if !byProject {
+                        Circle()
+                            .fill(Theme.color(forFamily: ReportBuilder.family(of: r.name)))
+                            .frame(width: 7, height: 7)
+                    }
+                    Text(r.name).lineLimit(1).truncationMode(.middle)
+                    Spacer()
+                    Text(Format.tokens(r.totals.total)).monospacedDigit().foregroundStyle(.secondary)
+                    Text(Format.usd(r.totals.cost.total)).monospacedDigit().frame(width: 70, alignment: .trailing)
+                }
+                .font(.caption)
+                .frame(height: 13)
+                .help(r.detail ?? r.name)
             }
         }
     }

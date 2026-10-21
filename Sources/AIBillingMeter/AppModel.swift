@@ -23,6 +23,8 @@ final class AppModel {
     /// Weekly summaries of calls older than the detail window (F-14).
     private(set) var summaries: [WeeklySummary] = []
     private(set) var summarizedBefore: Date?
+    /// Directory of each Claude Code project folder, for project names (F-16).
+    private(set) var projectPaths: [String: String] = [:]
     private(set) var cacheBytes = 0
     private(set) var planStatus: PlanStatus?
     private(set) var planError: String?
@@ -121,6 +123,7 @@ final class AppModel {
         entries = data.entries
         summaries = data.summaries
         summarizedBefore = data.summarizedBefore
+        projectPaths = data.projectPaths
         cacheBytes = await store.cacheFileSize()
         lastScan = Date()
         now = Date()
@@ -152,8 +155,10 @@ final class AppModel {
     // MARK: - Derived
 
     var builder: ReportBuilder {
-        ReportBuilder(prices: prices, billingDay: billingDay, weekStart: weekStart,
-                      planWeekStart: planStatus?.weeklyWindowStart)
+        var b = ReportBuilder(prices: prices, billingDay: billingDay, weekStart: weekStart,
+                              planWeekStart: planStatus?.weeklyWindowStart)
+        b.projectPaths = projectPaths
+        return b
     }
 
     var historyPolicy: HistoryPolicy {

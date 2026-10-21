@@ -24,6 +24,9 @@ public struct WeeklySummary: Codable, Hashable, Sendable {
     public var weekStart: Date
     public var model: String
     public var project: String
+    /// Claude Code project folder (see `UsageEntry.projectID`); nil for calls summarized before it
+    /// was recorded. Summaries are never deleted, so per-project totals are permanent (F-16).
+    public var projectID: String?
     public var fast: Bool
     public var longContext: Bool
     public var requests: Int
@@ -34,10 +37,12 @@ public struct WeeklySummary: Codable, Hashable, Sendable {
     public var cacheReadTokens: Int
     public var webSearches: Int
 
-    public init(weekStart: Date, model: String, project: String, fast: Bool, longContext: Bool) {
+    public init(weekStart: Date, model: String, project: String, projectID: String? = nil,
+                fast: Bool, longContext: Bool) {
         self.weekStart = weekStart
         self.model = model
         self.project = project
+        self.projectID = projectID
         self.fast = fast
         self.longContext = longContext
         requests = 0; inputTokens = 0; outputTokens = 0; cacheWrite5mTokens = 0
@@ -48,10 +53,13 @@ public struct WeeklySummary: Codable, Hashable, Sendable {
     public var totalTokens: Int { inputTokens + outputTokens + cacheWriteTokens + cacheReadTokens }
 
     struct Key: Hashable {
-        var weekStart: Date, model: String, project: String, fast: Bool, longContext: Bool
+        var weekStart: Date, model: String, project: String, projectID: String?, fast: Bool, longContext: Bool
     }
 
-    var key: Key { Key(weekStart: weekStart, model: model, project: project, fast: fast, longContext: longContext) }
+    var key: Key {
+        Key(weekStart: weekStart, model: model, project: project, projectID: projectID, fast: fast,
+            longContext: longContext)
+    }
 
     mutating func add(_ e: UsageEntry) {
         requests += 1
@@ -80,11 +88,15 @@ public struct UsageData: Sendable {
     public var summaries: [WeeklySummary]
     /// Start of the detail window at the latest summarizing; transcript lines before it are ignored.
     public var summarizedBefore: Date?
+    /// Full path of each Claude Code project folder that has been seen (`projectID` → path).
+    public var projectPaths: [String: String]
 
-    public init(entries: [UsageEntry], summaries: [WeeklySummary] = [], summarizedBefore: Date? = nil) {
+    public init(entries: [UsageEntry], summaries: [WeeklySummary] = [], summarizedBefore: Date? = nil,
+                projectPaths: [String: String] = [:]) {
         self.entries = entries
         self.summaries = summaries
         self.summarizedBefore = summarizedBefore
+        self.projectPaths = projectPaths
     }
 }
 
@@ -120,15 +132,15 @@ public enum HistoryCompactor {
         for e in entries {
             guard e.timestamp < before else { kept.append(e); continue }
             var s = WeeklySummary(weekStart: segmentStart(of: e.timestamp, policy: policy, calendar: calendar),
-                                  model: e.model, project: e.project, fast: e.fast,
+                                  model: e.model, project: e.project, projectID: e.projectID, fast: e.fast,
                                   longContext: prices.usesLongContextRate(e))
             s = byKey[s.key] ?? s
             s.add(e)
             byKey[s.key] = s
         }
         let sorted = byKey.values.sorted {
-            ($0.weekStart, $0.model, $0.project, $0.fast ? 1 : 0, $0.longContext ? 1 : 0)
-                < ($1.weekStart, $1.model, $1.project, $1.fast ? 1 : 0, $1.longContext ? 1 : 0)
+            ($0.weekStart, $0.model, $0.project, $0.projectID ?? "", $0.fast ? 1 : 0, $0.longContext ? 1 : 0)
+                < ($1.weekStart, $1.model, $1.project, $1.projectID ?? "", $1.fast ? 1 : 0, $1.longContext ? 1 : 0)
         }
         return (kept, sorted)
     }

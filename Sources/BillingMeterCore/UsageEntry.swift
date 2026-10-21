@@ -10,7 +10,12 @@ public struct UsageEntry: Codable, Hashable, Sendable {
     public var key: String
     public var timestamp: Date
     public var model: String
+    /// Display name: the last component of the line's working directory.
     public var project: String
+    /// The Claude Code project folder the transcript is in (`~/.claude/projects/<id>`), one per
+    /// directory a session was started in. Unique, unlike `project`; nil in caches written
+    /// before it was recorded. See `ProjectDirectory`.
+    public var projectID: String?
     public var sessionId: String
     public var inputTokens: Int
     public var outputTokens: Int
@@ -20,13 +25,15 @@ public struct UsageEntry: Codable, Hashable, Sendable {
     public var webSearches: Int
     public var fast: Bool
 
-    public init(key: String, timestamp: Date, model: String, project: String = "", sessionId: String = "",
+    public init(key: String, timestamp: Date, model: String, project: String = "", projectID: String? = nil,
+                sessionId: String = "",
                 inputTokens: Int = 0, outputTokens: Int = 0, cacheWrite5mTokens: Int = 0,
                 cacheWrite1hTokens: Int = 0, cacheReadTokens: Int = 0, webSearches: Int = 0, fast: Bool = false) {
         self.key = key
         self.timestamp = timestamp
         self.model = model
         self.project = project
+        self.projectID = projectID
         self.sessionId = sessionId
         self.inputTokens = inputTokens
         self.outputTokens = outputTokens
@@ -53,6 +60,7 @@ public struct UsageEntry: Codable, Hashable, Sendable {
         m.cacheReadTokens = max(cacheReadTokens, other.cacheReadTokens)
         m.webSearches = max(webSearches, other.webSearches)
         m.fast = fast || other.fast
+        m.projectID = projectID ?? other.projectID
         return m
     }
 }
@@ -109,7 +117,13 @@ enum TranscriptLine {
     }
 
     /// Returns nil for lines that are not billed assistant responses.
-    static func parse(_ data: Data, fallbackProject: String) -> UsageEntry? {
+    static func parse(_ data: Data, fallbackProject: String, projectID: String? = nil) -> UsageEntry? {
+        parseLine(data, fallbackProject: fallbackProject, projectID: projectID)?.entry
+    }
+
+    /// The entry and the line's working directory.
+    static func parseLine(_ data: Data, fallbackProject: String,
+                          projectID: String? = nil) -> (entry: UsageEntry, cwd: String?)? {
         guard data.range(of: marker) != nil,
               let line = try? decoder.decode(Line.self, from: data),
               let message = line.message, let usage = message.usage,
@@ -131,12 +145,14 @@ enum TranscriptLine {
             key = message.id ?? line.requestId ?? line.uuid ?? UUID().uuidString
         }
         let project = line.cwd.map { URL(fileURLWithPath: $0).lastPathComponent } ?? fallbackProject
-        return UsageEntry(
-            key: key, timestamp: ts, model: model, project: project, sessionId: line.sessionId ?? "",
+        let entry = UsageEntry(
+            key: key, timestamp: ts, model: model, project: project, projectID: projectID,
+            sessionId: line.sessionId ?? "",
             inputTokens: usage.input_tokens ?? 0, outputTokens: usage.output_tokens ?? 0,
             cacheWrite5mTokens: write5m, cacheWrite1hTokens: write1h,
             cacheReadTokens: usage.cache_read_input_tokens ?? 0,
             webSearches: usage.server_tool_use?.web_search_requests ?? 0,
             fast: usage.speed == "fast")
+        return (entry, line.cwd)
     }
 }
