@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import ClaudeMonCore
+@testable import BillingMeterCore
 
 private func line(id: String = "msg_1", req: String = "req_1", model: String = "claude-opus-5-5",
                   ts: String = "2026-10-15T12:00:00.000Z", input: Int = 10, output: Int = 5,

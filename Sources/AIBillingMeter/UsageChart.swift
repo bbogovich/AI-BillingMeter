@@ -1,5 +1,5 @@
 import Charts
-import ClaudeMonCore
+import BillingMeterCore
 import SwiftUI
 
 enum ChartMetric: String, CaseIterable, Identifiable {

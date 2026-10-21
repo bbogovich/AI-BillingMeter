@@ -1,4 +1,4 @@
-import ClaudeMonCore
+import BillingMeterCore
 import SwiftUI
 
 struct MenuContentView: View {
@@ -60,7 +60,7 @@ struct MenuContentView: View {
     private var header: some View {
         HStack {
             Image(systemName: "gauge.with.dots.needle.33percent")
-            Text("ClaudeMon").font(.headline)
+            Text("AI Billing Meter").font(.headline)
             if let plan = model.plan {
                 Text(plan.displayName)
                     .font(.caption.bold())

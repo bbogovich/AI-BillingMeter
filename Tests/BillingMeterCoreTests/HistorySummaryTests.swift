@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import ClaudeMonCore
+@testable import BillingMeterCore
 
 // Spec-derived tests for F-14 Bounded usage history (ClaudeMon-Definition spec 1.4.0, CMUSE.4 and
 // related pages). Each test names the case it implements with `trace:`; all data is mock data.

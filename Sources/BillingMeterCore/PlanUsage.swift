@@ -110,7 +110,7 @@ public enum PlanUsageClient {
     ///
     /// Claude Code saves its login with `security add-generic-password -U` (deleting the item
     /// first in some paths), so the item's access list trusts `security` and nothing else. Every
-    /// token refresh rewrites the item and drops any "Always Allow" granted to ClaudeMon, which
+    /// token refresh rewrites the item and drops any "Always Allow" granted to AI Billing Meter, which
     /// is why a direct `SecItemCopyMatching` read prompted again every few hours. Reading through
     /// `security` needs no prompt and does not change the item (R-CMLIM-002).
     static func readCredentials() throws -> Credentials {

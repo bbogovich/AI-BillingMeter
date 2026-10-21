@@ -1,8 +1,8 @@
 import AppKit
-import ClaudeMonCore
+import BillingMeterCore
 import SwiftUI
 
-/// `ClaudeMon --snapshot <dir>` renders the popover for each period, in light and dark,
+/// `AI Billing Meter --snapshot <dir>` renders the popover for each period, in light and dark,
 /// to PNG files and exits. Used to check layout without opening the menu bar. Plan limits
 /// are sample values so the Keychain is never touched.
 @MainActor

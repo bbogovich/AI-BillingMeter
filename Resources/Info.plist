@@ -3,13 +3,16 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleName</key>
-    <string>ClaudeMon</string>
+    <string>AI Billing Meter</string>
     <key>CFBundleDisplayName</key>
-    <string>ClaudeMon</string>
+    <string>AI Billing Meter</string>
+    <!-- Xcode substitutes these; scripts/build-app.sh sets them with plutil. -->
     <key>CFBundleIdentifier</key>
-    <string>com.bogovich.ClaudeMon</string>
+    <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
     <key>CFBundleExecutable</key>
-    <string>ClaudeMon</string>
+    <string>$(EXECUTABLE_NAME)</string>
+    <key>LSApplicationCategoryType</key>
+    <string>public.app-category.developer-tools</string>
     <key>CFBundleIconFile</key>
     <string>AppIcon</string>
     <key>CFBundlePackageType</key>

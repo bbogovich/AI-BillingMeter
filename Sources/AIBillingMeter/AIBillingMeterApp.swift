@@ -5,7 +5,7 @@ import SwiftUI
 /// opens its `Settings` scene when the Dock icon is clicked, and `MenuBarExtra` gives no access
 /// to the status item (see StatusBarController).
 @main
-enum ClaudeMonMain {
+enum AIBillingMeterMain {
     @MainActor
     static func main() {
         let app = NSApplication.shared
@@ -42,11 +42,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func showSettings() {
         let window = settingsWindow ?? {
             let w = NSWindow(contentViewController: NSHostingController(rootView: SettingsView(model: model)))
-            w.title = "ClaudeMon Settings"
+            w.title = "AI Billing Meter Settings"
             w.styleMask = [.titled, .closable, .miniaturizable]
             w.isReleasedWhenClosed = false
             w.center()
-            w.setFrameAutosaveName("ClaudeMonSettings")
+            w.setFrameAutosaveName("AIBillingMeterSettings")
             settingsWindow = w
             return w
         }()
@@ -59,16 +59,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func makeMainMenu() -> NSMenu {
         let main = NSMenu()
         let appMenu = NSMenu()
-        appMenu.addItem(withTitle: "About ClaudeMon",
+        appMenu.addItem(withTitle: "About AI Billing Meter",
                         action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
         appMenu.addItem(.separator())
         appMenu.addItem(withTitle: "Show Usage", action: #selector(showPanel), keyEquivalent: "u").target = self
         appMenu.addItem(withTitle: "Settings…", action: #selector(showSettings), keyEquivalent: ",").target = self
         appMenu.addItem(.separator())
-        appMenu.addItem(withTitle: "Hide ClaudeMon", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
+        appMenu.addItem(withTitle: "Hide AI Billing Meter", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
         appMenu.addItem(.separator())
-        appMenu.addItem(withTitle: "Quit ClaudeMon", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
-        main.addItem(withTitle: "ClaudeMon", action: nil, keyEquivalent: "").submenu = appMenu
+        appMenu.addItem(withTitle: "Quit AI Billing Meter", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        main.addItem(withTitle: "AI Billing Meter", action: nil, keyEquivalent: "").submenu = appMenu
 
         let windowMenu = NSMenu(title: "Window")
         windowMenu.addItem(withTitle: "Close", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")

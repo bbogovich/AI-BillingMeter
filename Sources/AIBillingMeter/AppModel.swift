@@ -1,4 +1,4 @@
-import ClaudeMonCore
+import BillingMeterCore
 import Foundation
 import Observation
 import ServiceManagement
@@ -64,13 +64,11 @@ final class AppModel {
     /// `snapshot` mode (see `Snapshot.swift`) skips the background loops and the Keychain.
     init(snapshot: Bool = false) {
         self.snapshot = snapshot
+        if !snapshot { AppPaths.migrateLegacyData() }
         let d = UserDefaults.standard
-        let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("ClaudeMon", isDirectory: true)
-        supportDirectory = support
-        store = TranscriptStore(roots: TranscriptStore.defaultRoots(),
-                                cacheURL: support.appendingPathComponent("usage-cache.json"))
-        prices = PriceTable.loadOrInstall(at: support.appendingPathComponent("pricing.json"))
+        supportDirectory = AppPaths.supportDirectory
+        store = TranscriptStore(roots: TranscriptStore.defaultRoots(), cacheURL: AppPaths.cacheURL)
+        prices = PriceTable.loadOrInstall(at: AppPaths.pricesURL)
         billingDay = d.object(forKey: "billingDay") as? Int ?? 1
         weekStart = WeekStart(rawValue: d.string(forKey: "weekStart") ?? "") ?? .planReset
         detailedHistoryMonths = HistoryPolicy(detailedMonths: d.object(forKey: "detailedHistoryMonths") as? Int ?? 1)

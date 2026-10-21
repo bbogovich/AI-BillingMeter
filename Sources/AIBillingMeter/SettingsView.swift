@@ -1,4 +1,4 @@
-import ClaudeMonCore
+import BillingMeterCore
 import SwiftUI
 
 struct SettingsView: View {

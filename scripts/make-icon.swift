@@ -1,4 +1,4 @@
-// Draws the ClaudeMon app icon (orange asterisk with a speedometer overlaid) and writes
+// Draws the AI Billing Meter app icon (orange asterisk with a speedometer overlaid) and writes
 // Resources/AppIcon.icns. Run: xcrun swift scripts/make-icon.swift
 import AppKit
 

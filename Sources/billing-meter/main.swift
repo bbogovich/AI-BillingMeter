@@ -1,7 +1,7 @@
-import ClaudeMonCore
+import BillingMeterCore
 import Foundation
 
-// Usage: claudemon-report [--billing-day N] [--plan-price USD] [--no-cache]
+// Usage: billing-meter [--billing-day N] [--plan-price USD] [--no-cache]
 // Prints today / week / billing-month totals computed by the same code the app uses.
 
 var billingDay = 1
@@ -14,23 +14,22 @@ while let a = args.next() {
     case "--plan-price": planPrice = Double(args.next() ?? "")
     case "--no-cache": useCache = false
     default:
-        print("usage: claudemon-report [--billing-day N] [--plan-price USD] [--no-cache]")
+        print("usage: billing-meter [--billing-day N] [--plan-price USD] [--no-cache]")
         exit(2)
     }
 }
 
-let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-    .appendingPathComponent("ClaudeMon", isDirectory: true)
+AppPaths.migrateLegacyData()
 let cacheURL = useCache
-    ? support.appendingPathComponent("usage-cache.json")
-    : FileManager.default.temporaryDirectory.appendingPathComponent("claudemon-\(UUID().uuidString).json")
-let prices = PriceTable.loadOrInstall(at: support.appendingPathComponent("pricing.json"))
+    ? AppPaths.cacheURL
+    : FileManager.default.temporaryDirectory.appendingPathComponent("billing-meter-\(UUID().uuidString).json")
+let prices = PriceTable.loadOrInstall(at: AppPaths.pricesURL)
 // The terminal summarizes with the app's own preferences, so it can never summarize more than the
 // app would. There is deliberately no flag to override the window.
 // trace: R-CMCLI-004 <- F-14
-let appDefaults = UserDefaults(suiteName: "com.bogovich.ClaudeMon")
-let policy = HistoryPolicy(detailedMonths: appDefaults?.object(forKey: "detailedHistoryMonths") as? Int ?? 1,
-                           firstWeekday: appDefaults?.string(forKey: "weekStart") == "sunday" ? 1 : 2)
+let appDefaults = AppPaths.defaults
+let policy = HistoryPolicy(detailedMonths: appDefaults.object(forKey: "detailedHistoryMonths") as? Int ?? 1,
+                           firstWeekday: appDefaults.string(forKey: "weekStart") == "sunday" ? 1 : 2)
 let store = TranscriptStore(roots: TranscriptStore.defaultRoots(), cacheURL: cacheURL)
 let now = Date()
 let data = await store.refresh(now: now, policy: policy, prices: prices)

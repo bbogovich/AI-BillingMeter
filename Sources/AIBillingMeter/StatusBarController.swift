@@ -11,7 +11,7 @@ import SwiftUI
 /// and the most recently added item goes furthest left. On a display with a camera housing
 /// ("notch") only the area right of the notch holds status items; an item that would fall under
 /// or left of the notch is not drawn, with no error, while the app keeps running. Measured on
-/// macOS 26.6 (notch x 771–956 of 1728 pt): ClaudeMon's text item (74–90 pt wide) sat partly under
+/// macOS 26.6 (notch x 771–956 of 1728 pt): AI Billing Meter's text item (74–90 pt wide) sat partly under
 /// the notch at x 918, and when launched after other menu bar apps it was placed at x 502, left of
 /// the notch, and never drawn. Its width changes with its text, so it can cross the edge on any
 /// refresh, and any app that adds an item later pushes it further left.
@@ -30,7 +30,7 @@ final class StatusBarController: NSObject {
     /// needs less room right of the notch. Cleared on the next launch.
     private var compact = false
 
-    private static let autosaveName = "ClaudeMonStatusItem"
+    private static let autosaveName = "AIBillingMeterStatusItem"
 
     init(model: AppModel, showSettings: @escaping () -> Void) {
         self.model = model
@@ -51,7 +51,7 @@ final class StatusBarController: NSObject {
             button.target = self
             button.action = #selector(statusItemClicked(_:))
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
-            button.setAccessibilityTitle("ClaudeMon")
+            button.setAccessibilityTitle("AI Billing Meter")
         }
         statusItem = item
         updateLabel()
@@ -113,11 +113,11 @@ final class StatusBarController: NSObject {
     private func updateLabel() {
         guard let button = statusItem?.button else { return }
         let image = NSImage(systemSymbolName: "gauge.with.dots.needle.33percent",
-                            accessibilityDescription: "ClaudeMon")
+                            accessibilityDescription: "AI Billing Meter")
         image?.isTemplate = true
         button.image = image
         let text = compact ? "" : model.menuBarText
-        button.toolTip = compact ? "ClaudeMon \(model.menuBarText)" : "ClaudeMon"
+        button.toolTip = compact ? "AI Billing Meter \(model.menuBarText)" : "AI Billing Meter"
         if text.isEmpty {
             button.attributedTitle = NSAttributedString()
             button.imagePosition = .imageOnly

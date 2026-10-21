@@ -7,53 +7,53 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		A10000000000000000000034 /* ClaudeMonCore in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000031 /* ClaudeMonCore */; };
-		A10000000000000000000035 /* ClaudeMonCore in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000032 /* ClaudeMonCore */; };
-		A10000000000000000000036 /* ClaudeMonCore in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000033 /* ClaudeMonCore */; };
+		A10000000000000000000034 /* BillingMeterCore in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000031 /* BillingMeterCore */; };
+		A10000000000000000000035 /* BillingMeterCore in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000032 /* BillingMeterCore */; };
+		A10000000000000000000036 /* BillingMeterCore in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000033 /* BillingMeterCore */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		A10000000000000000000020 /* ClaudeMon.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ClaudeMon.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		A10000000000000000000021 /* claudemon-report */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "claudemon-report"; sourceTree = BUILT_PRODUCTS_DIR; };
-		A10000000000000000000022 /* ClaudeMonTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ClaudeMonTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		A10000000000000000000020 /* AI Billing Meter.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "AI Billing Meter.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		A10000000000000000000021 /* billing-meter */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "billing-meter"; sourceTree = BUILT_PRODUCTS_DIR; };
+		A10000000000000000000022 /* AIBillingMeterTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AIBillingMeterTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		A10000000000000000000014 /* Exceptions for "Resources" folder in "ClaudeMonApp" target */ = {
+		A10000000000000000000014 /* Exceptions for "Resources" folder in "AIBillingMeterApp" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				"AppIcon-1024.png",
 				Info.plist,
 			);
-			target = A10000000000000000000040 /* ClaudeMonApp */;
+			target = A10000000000000000000040 /* AIBillingMeterApp */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		A10000000000000000000010 /* ClaudeMon */ = {
+		A10000000000000000000010 /* AIBillingMeter */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			name = ClaudeMon;
-			path = Sources/ClaudeMon;
+			name = AIBillingMeter;
+			path = Sources/AIBillingMeter;
 			sourceTree = "<group>";
 		};
 		A10000000000000000000011 /* Resources */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				A10000000000000000000014 /* Exceptions for "Resources" folder in "ClaudeMonApp" target */,
+				A10000000000000000000014 /* Exceptions for "Resources" folder in "AIBillingMeterApp" target */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
 		};
-		A10000000000000000000012 /* claudemon-report */ = {
+		A10000000000000000000012 /* billing-meter */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			name = "claudemon-report";
-			path = "Sources/claudemon-report";
+			name = "billing-meter";
+			path = "Sources/billing-meter";
 			sourceTree = "<group>";
 		};
-		A10000000000000000000013 /* ClaudeMonCoreTests */ = {
+		A10000000000000000000013 /* BillingMeterCoreTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			name = ClaudeMonCoreTests;
-			path = Tests/ClaudeMonCoreTests;
+			name = BillingMeterCoreTests;
+			path = Tests/BillingMeterCoreTests;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -63,7 +63,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A10000000000000000000034 /* ClaudeMonCore in Frameworks */,
+				A10000000000000000000034 /* BillingMeterCore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -71,7 +71,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A10000000000000000000035 /* ClaudeMonCore in Frameworks */,
+				A10000000000000000000035 /* BillingMeterCore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -79,7 +79,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A10000000000000000000036 /* ClaudeMonCore in Frameworks */,
+				A10000000000000000000036 /* BillingMeterCore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -89,10 +89,10 @@
 		A10000000000000000000002 = {
 			isa = PBXGroup;
 			children = (
-				A10000000000000000000010 /* ClaudeMon */,
-				A10000000000000000000012 /* claudemon-report */,
+				A10000000000000000000010 /* AIBillingMeter */,
+				A10000000000000000000012 /* billing-meter */,
 				A10000000000000000000011 /* Resources */,
-				A10000000000000000000013 /* ClaudeMonCoreTests */,
+				A10000000000000000000013 /* BillingMeterCoreTests */,
 				A10000000000000000000003 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -100,9 +100,9 @@
 		A10000000000000000000003 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				A10000000000000000000020 /* ClaudeMon.app */,
-				A10000000000000000000021 /* claudemon-report */,
-				A10000000000000000000022 /* ClaudeMonTests.xctest */,
+				A10000000000000000000020 /* AI Billing Meter.app */,
+				A10000000000000000000021 /* billing-meter */,
+				A10000000000000000000022 /* AIBillingMeterTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -110,9 +110,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		A10000000000000000000040 /* ClaudeMonApp */ = {
+		A10000000000000000000040 /* AIBillingMeterApp */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = A10000000000000000000073 /* Build configuration list for PBXNativeTarget "ClaudeMonApp" */;
+			buildConfigurationList = A10000000000000000000073 /* Build configuration list for PBXNativeTarget "AIBillingMeterApp" */;
 			buildPhases = (
 				A10000000000000000000041 /* Sources */,
 				A10000000000000000000042 /* Frameworks */,
@@ -123,20 +123,20 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				A10000000000000000000010 /* ClaudeMon */,
+				A10000000000000000000010 /* AIBillingMeter */,
 				A10000000000000000000011 /* Resources */,
 			);
-			name = ClaudeMonApp;
+			name = AIBillingMeterApp;
 			packageProductDependencies = (
-				A10000000000000000000031 /* ClaudeMonCore */,
+				A10000000000000000000031 /* BillingMeterCore */,
 			);
-			productName = ClaudeMon;
-			productReference = A10000000000000000000020 /* ClaudeMon.app */;
+			productName = AIBillingMeter;
+			productReference = A10000000000000000000020 /* AI Billing Meter.app */;
 			productType = "com.apple.product-type.application";
 		};
-		A10000000000000000000050 /* ClaudeMonReport */ = {
+		A10000000000000000000050 /* BillingMeterReport */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = A10000000000000000000076 /* Build configuration list for PBXNativeTarget "ClaudeMonReport" */;
+			buildConfigurationList = A10000000000000000000076 /* Build configuration list for PBXNativeTarget "BillingMeterReport" */;
 			buildPhases = (
 				A10000000000000000000051 /* Sources */,
 				A10000000000000000000052 /* Frameworks */,
@@ -146,19 +146,19 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				A10000000000000000000012 /* claudemon-report */,
+				A10000000000000000000012 /* billing-meter */,
 			);
-			name = ClaudeMonReport;
+			name = BillingMeterReport;
 			packageProductDependencies = (
-				A10000000000000000000032 /* ClaudeMonCore */,
+				A10000000000000000000032 /* BillingMeterCore */,
 			);
-			productName = "claudemon-report";
-			productReference = A10000000000000000000021 /* claudemon-report */;
+			productName = "billing-meter";
+			productReference = A10000000000000000000021 /* billing-meter */;
 			productType = "com.apple.product-type.tool";
 		};
-		A10000000000000000000060 /* ClaudeMonTests */ = {
+		A10000000000000000000060 /* AIBillingMeterTests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = A10000000000000000000079 /* Build configuration list for PBXNativeTarget "ClaudeMonTests" */;
+			buildConfigurationList = A10000000000000000000079 /* Build configuration list for PBXNativeTarget "AIBillingMeterTests" */;
 			buildPhases = (
 				A10000000000000000000061 /* Sources */,
 				A10000000000000000000062 /* Frameworks */,
@@ -169,14 +169,14 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				A10000000000000000000013 /* ClaudeMonCoreTests */,
+				A10000000000000000000013 /* BillingMeterCoreTests */,
 			);
-			name = ClaudeMonTests;
+			name = AIBillingMeterTests;
 			packageProductDependencies = (
-				A10000000000000000000033 /* ClaudeMonCore */,
+				A10000000000000000000033 /* BillingMeterCore */,
 			);
-			productName = ClaudeMonTests;
-			productReference = A10000000000000000000022 /* ClaudeMonTests.xctest */;
+			productName = AIBillingMeterTests;
+			productReference = A10000000000000000000022 /* AIBillingMeterTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
 /* End PBXNativeTarget section */
@@ -200,7 +200,7 @@
 					};
 				};
 			};
-			buildConfigurationList = A10000000000000000000070 /* Build configuration list for PBXProject "ClaudeMon" */;
+			buildConfigurationList = A10000000000000000000070 /* Build configuration list for PBXProject "AIBillingMeter" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -217,9 +217,9 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				A10000000000000000000040 /* ClaudeMonApp */,
-				A10000000000000000000050 /* ClaudeMonReport */,
-				A10000000000000000000060 /* ClaudeMonTests */,
+				A10000000000000000000040 /* AIBillingMeterApp */,
+				A10000000000000000000050 /* BillingMeterReport */,
+				A10000000000000000000060 /* AIBillingMeterTests */,
 			);
 		};
 /* End PBXProject section */
@@ -324,8 +324,8 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.bogovich.ClaudeMon;
-				PRODUCT_NAME = ClaudeMon;
+				PRODUCT_BUNDLE_IDENTIFIER = com.bogovich.AIBillingMeter;
+				PRODUCT_NAME = "AI Billing Meter";
 			};
 			name = Debug;
 		};
@@ -342,8 +342,8 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.bogovich.ClaudeMon;
-				PRODUCT_NAME = ClaudeMon;
+				PRODUCT_BUNDLE_IDENTIFIER = com.bogovich.AIBillingMeter;
+				PRODUCT_NAME = "AI Billing Meter";
 			};
 			name = Release;
 		};
@@ -353,7 +353,7 @@
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Automatic;
 				ENABLE_HARDENED_RUNTIME = YES;
-				PRODUCT_NAME = "claudemon-report";
+				PRODUCT_NAME = "billing-meter";
 			};
 			name = Debug;
 		};
@@ -363,7 +363,7 @@
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Automatic;
 				ENABLE_HARDENED_RUNTIME = YES;
-				PRODUCT_NAME = "claudemon-report";
+				PRODUCT_NAME = "billing-meter";
 			};
 			name = Release;
 		};
@@ -373,7 +373,7 @@
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Automatic;
 				GENERATE_INFOPLIST_FILE = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = com.bogovich.ClaudeMonTests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.bogovich.AIBillingMeterTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Debug;
@@ -384,7 +384,7 @@
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Automatic;
 				GENERATE_INFOPLIST_FILE = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = com.bogovich.ClaudeMonTests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.bogovich.AIBillingMeterTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Release;
@@ -392,7 +392,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		A10000000000000000000070 /* Build configuration list for PBXProject "ClaudeMon" */ = {
+		A10000000000000000000070 /* Build configuration list for PBXProject "AIBillingMeter" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				A10000000000000000000071 /* Debug */,
@@ -401,7 +401,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		A10000000000000000000073 /* Build configuration list for PBXNativeTarget "ClaudeMonApp" */ = {
+		A10000000000000000000073 /* Build configuration list for PBXNativeTarget "AIBillingMeterApp" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				A10000000000000000000074 /* Debug */,
@@ -410,7 +410,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		A10000000000000000000076 /* Build configuration list for PBXNativeTarget "ClaudeMonReport" */ = {
+		A10000000000000000000076 /* Build configuration list for PBXNativeTarget "BillingMeterReport" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				A10000000000000000000077 /* Debug */,
@@ -419,7 +419,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		A10000000000000000000079 /* Build configuration list for PBXNativeTarget "ClaudeMonTests" */ = {
+		A10000000000000000000079 /* Build configuration list for PBXNativeTarget "AIBillingMeterTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				A1000000000000000000007A /* Debug */,
@@ -438,17 +438,17 @@
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		A10000000000000000000031 /* ClaudeMonCore */ = {
+		A10000000000000000000031 /* BillingMeterCore */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = ClaudeMonCore;
+			productName = BillingMeterCore;
 		};
-		A10000000000000000000032 /* ClaudeMonCore */ = {
+		A10000000000000000000032 /* BillingMeterCore */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = ClaudeMonCore;
+			productName = BillingMeterCore;
 		};
-		A10000000000000000000033 /* ClaudeMonCore */ = {
+		A10000000000000000000033 /* BillingMeterCore */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = ClaudeMonCore;
+			productName = BillingMeterCore;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
