@@ -1,4 +1,4 @@
-// Draws the AI Billing Meter app icon (orange asterisk with a speedometer overlaid) and writes
+// Draws the AI Billing Meter app icon (rainbow asterisk with a speedometer overlaid) and writes
 // Resources/AppIcon.icns. Run: xcrun swift scripts/make-icon.swift
 import AppKit
 
@@ -35,21 +35,26 @@ func drawIcon(in ctx: CGContext, size s: CGFloat) {
 
     let center = CGPoint(x: 512, y: 512)
 
-    // Orange asterisk: six rounded arms, one pointing straight up like a typed "*".
-    let orange = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB),
-                            colors: [color(0xf08a4b), color(0xd9622b)] as CFArray, locations: [0, 1])!
-    let arm = CGMutablePath()
-    for i in 0..<6 {
-        let angle = CGFloat(i) * .pi / 3
+    // Rainbow asterisk: six rounded arms, one pointing straight up like a typed "*", coloured
+    // red → violet going clockwise from the top. CG rotation is counterclockwise, so arm i sits at
+    // -i × 60°. Each arm is shaded lighter toward its tip; the dial hides where the arms overlap.
+    let rainbow: [(UInt32, UInt32)] = [(0xf26b6b, 0xd93f45), (0xf7a35c, 0xe0742c), (0xf7d35a, 0xe0ac21),
+                                       (0x5fd17f, 0x2f9e55), (0x5f9ef7, 0x2f6fd9), (0xa682f7, 0x7a4fd9)]
+    for (i, (tipColor, baseColor)) in rainbow.enumerated() {
+        let angle = -CGFloat(i) * .pi / 3
         let t = CGAffineTransform(translationX: center.x, y: center.y).rotated(by: angle)
-        arm.addRoundedRect(in: CGRect(x: -66, y: 0, width: 132, height: 352),
-                           cornerWidth: 66, cornerHeight: 66, transform: t)
+        let arm = CGPath(roundedRect: CGRect(x: -66, y: 0, width: 132, height: 352),
+                         cornerWidth: 66, cornerHeight: 66, transform: [t])
+        let shade = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB),
+                               colors: [color(baseColor), color(tipColor)] as CFArray, locations: [0, 1])!
+        ctx.saveGState()
+        ctx.addPath(arm)
+        ctx.clip()
+        ctx.drawLinearGradient(shade, start: center,
+                               end: CGPoint(x: center.x - sin(angle) * 352, y: center.y + cos(angle) * 352),
+                               options: [])
+        ctx.restoreGState()
     }
-    ctx.saveGState()
-    ctx.addPath(arm)
-    ctx.clip()
-    ctx.drawLinearGradient(orange, start: CGPoint(x: 512, y: 880), end: CGPoint(x: 512, y: 140), options: [])
-    ctx.restoreGState()
 
     // Speedometer dial overlaid on the asterisk's centre.
     let r: CGFloat = 231 // 178 × 1.3
