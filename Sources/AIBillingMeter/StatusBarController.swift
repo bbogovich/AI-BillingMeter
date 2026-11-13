@@ -205,8 +205,12 @@ final class StatusBarController: NSObject {
                 self?.showSettings()
             })
         let hosting = NSHostingView(rootView: content)
-        // Intrinsic size only: the panel's height is managed by WindowFitter, not by min/max sizes.
-        hosting.sizingOptions = [.intrinsicContentSize]
+        // No sizing options and no Auto Layout: the panel's height is owned by WindowFitter alone,
+        // which keeps the top edge under the menu bar. With `.intrinsicContentSize` plus edge
+        // constraints, AppKit also resized the window whenever the content height changed (on a
+        // tab switch), anchored at its bottom-left, so the two fought: the panel rose past the
+        // menu bar or its background and content separated, leaving a transparent band.
+        hosting.sizingOptions = []
         self.hosting = hosting
 
         let background = NSVisualEffectView()
@@ -216,16 +220,11 @@ final class StatusBarController: NSObject {
         background.wantsLayer = true
         background.layer?.cornerRadius = 10
         background.layer?.masksToBounds = true
-        background.addSubview(hosting)
-        hosting.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            hosting.leadingAnchor.constraint(equalTo: background.leadingAnchor),
-            hosting.trailingAnchor.constraint(equalTo: background.trailingAnchor),
-            hosting.topAnchor.constraint(equalTo: background.topAnchor),
-            hosting.bottomAnchor.constraint(equalTo: background.bottomAnchor),
-        ])
-        panel.contentView = background
         background.frame.size = hosting.fittingSize
+        hosting.frame = background.bounds
+        hosting.autoresizingMask = [.width, .height]
+        background.addSubview(hosting)
+        panel.contentView = background
         return panel
     }
 }
