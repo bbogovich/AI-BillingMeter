@@ -26,6 +26,8 @@ final class AppModel {
     /// Directory of each Claude Code project folder, for project names (F-16).
     private(set) var projectPaths: [String: String] = [:]
     private(set) var cacheBytes = 0
+    /// Macs whose history has been imported (without their calls), for Settings.
+    private(set) var importedSources: [SourceHistory] = []
     private(set) var planStatus: PlanStatus?
     private(set) var planError: String?
     private(set) var lastScan: Date?
@@ -120,14 +122,37 @@ final class AppModel {
         let policy = historyPolicy, prices = prices
         let data = full ? await store.rescanAll(now: Date(), policy: policy, prices: prices)
                         : await store.refresh(now: Date(), policy: policy, prices: prices)
+        await apply(data)
+        isScanning = false
+    }
+
+    private func apply(_ data: UsageData) async {
         entries = data.entries
         summaries = data.summaries
         summarizedBefore = data.summarizedBefore
         projectPaths = data.projectPaths
         cacheBytes = await store.cacheFileSize()
+        importedSources = await store.importedSources()
         lastScan = Date()
         now = Date()
-        isScanning = false
+    }
+
+    // MARK: - History export and import
+
+    /// Writes all tracked history (this Mac's and any imported) to `url`.
+    func exportHistory(to url: URL) async throws -> String {
+        let archive = await store.exportArchive()
+        try archive.encoded().write(to: url, options: .atomic)
+        let calls = archive.sources.map(\.requests).reduce(0, +)
+        return "Exported \(calls.formatted()) calls to \(url.lastPathComponent)."
+    }
+
+    /// Adds the history in the export at `url`; importing the same file twice changes nothing.
+    func importHistory(from url: URL) async throws -> String {
+        let archive = try HistoryArchive.decode(Data(contentsOf: url))
+        let (result, data) = await store.importArchive(archive, now: Date(), policy: historyPolicy, prices: prices)
+        await apply(data)
+        return result.summary
     }
 
     func refreshPlan() async {

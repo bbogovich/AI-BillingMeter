@@ -2,13 +2,18 @@ import BillingMeterCore
 import Foundation
 
 // Usage: billing-meter [--billing-day N] [--plan-price USD] [--no-cache] [--projects]
+//                      [--export FILE] [--import FILE]
 // Prints today / week / billing-month / all-time totals computed by the same code the app uses.
 // All-time lists every project; --projects lists projects for the other periods too.
+// --export writes all tracked history to FILE; --import adds the history in such a file (as the
+// app's Settings > Move history to another Mac does), then prints the report.
 
 var billingDay = 1
 var planPrice: Double?
 var useCache = true
 var showProjects = false
+var exportURL: URL?
+var importURL: URL?
 var args = CommandLine.arguments.dropFirst().makeIterator()
 while let a = args.next() {
     switch a {
@@ -16,8 +21,10 @@ while let a = args.next() {
     case "--plan-price": planPrice = Double(args.next() ?? "")
     case "--no-cache": useCache = false
     case "--projects": showProjects = true
+    case "--export": exportURL = args.next().map { URL(fileURLWithPath: $0) }
+    case "--import": importURL = args.next().map { URL(fileURLWithPath: $0) }
     default:
-        print("usage: billing-meter [--billing-day N] [--plan-price USD] [--no-cache] [--projects]")
+        print("usage: billing-meter [--billing-day N] [--plan-price USD] [--no-cache] [--projects] [--export FILE] [--import FILE]")
         exit(2)
     }
 }
@@ -35,7 +42,28 @@ let policy = HistoryPolicy(detailedMonths: appDefaults.object(forKey: "detailedH
                            firstWeekday: appDefaults.string(forKey: "weekStart") == "sunday" ? 1 : 2)
 let store = TranscriptStore(roots: TranscriptStore.defaultRoots(), cacheURL: cacheURL)
 let now = Date()
-let data = await store.refresh(now: now, policy: policy, prices: prices)
+var data = await store.refresh(now: now, policy: policy, prices: prices)
+if let importURL {
+    do {
+        let archive = try HistoryArchive.decode(Data(contentsOf: importURL))
+        let (result, imported) = await store.importArchive(archive, now: now, policy: policy, prices: prices)
+        data = imported
+        print(result.summary)
+    } catch {
+        print("Import failed: \(error.localizedDescription)")
+        exit(1)
+    }
+}
+if let exportURL {
+    do {
+        let archive = await store.exportArchive(now: now)
+        try archive.encoded().write(to: exportURL, options: .atomic)
+        print("Exported \(archive.sources.map(\.requests).reduce(0, +)) calls to \(exportURL.path)")
+    } catch {
+        print("Export failed: \(error.localizedDescription)")
+        exit(1)
+    }
+}
 let entries = data.entries
 if !useCache { try? FileManager.default.removeItem(at: cacheURL) }
 

@@ -1,9 +1,11 @@
 import BillingMeterCore
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct SettingsView: View {
     @Bindable var model: AppModel
     @State private var launchAtLogin = false
+    @State private var transferMessage: String?
 
     var body: some View {
         Form {
@@ -48,6 +50,22 @@ struct SettingsView: View {
                 Text("Older months are kept as weekly totals per model and project. Raising this later does not bring back detail that was already summarized.")
                     .font(.caption).foregroundStyle(.secondary)
             }
+            Section("Move history to another Mac") {
+                HStack {
+                    Button("Export history…") { exportHistory() }
+                    Button("Import history…") { importHistory() }
+                }
+                if let transferMessage {
+                    Text(transferMessage).font(.caption)
+                }
+                ForEach(model.importedSources, id: \.sourceID) { s in
+                    LabeledContent("From \(s.sourceName)",
+                                   value: "exported \(s.asOf.formatted(date: .abbreviated, time: .shortened))")
+                        .font(.caption)
+                }
+                Text("Claude Code deletes old transcripts, so history it no longer has exists only here. Export on the old Mac and import on the new one. Importing the same export twice changes nothing; a newer export from the same Mac replaces the earlier one.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
             Section("Data") {
                 LabeledContent("Prices as of", value: model.prices.asOf)
                 HStack {
@@ -66,6 +84,28 @@ struct SettingsView: View {
         .frame(width: 460)
         .fixedSize(horizontal: false, vertical: true)
         .onAppear { launchAtLogin = model.launchAtLogin }
+    }
+
+    private func exportHistory() {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.json]
+        panel.nameFieldStringValue = HistoryArchive.suggestedFileName()
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        Task {
+            do { transferMessage = try await model.exportHistory(to: url) }
+            catch { transferMessage = "Export failed: \(error.localizedDescription)" }
+        }
+    }
+
+    private func importHistory() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.json]
+        panel.allowsMultipleSelection = false
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        Task {
+            do { transferMessage = try await model.importHistory(from: url) }
+            catch { transferMessage = "Import failed: \(error.localizedDescription)" }
+        }
     }
 
     private var historyLabel: String {

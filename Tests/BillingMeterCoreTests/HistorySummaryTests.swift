@@ -251,8 +251,9 @@ private func calls(_ d: UsageData) -> Int {
         #expect(again.entries == first.entries)
         #expect(again.summarizedBefore == first.summarizedBefore)
         let json = try JSONSerialization.jsonObject(with: Data(contentsOf: cache)) as? [String: Any]
-        // Version 3 (F-16) adds project folders; R-CMUSE-007 names version 2 until the spec catches up.
-        #expect(json?["version"] as? Int == 3)
+        // Version 3 (F-16) adds project folders, version 4 imported history; R-CMUSE-007 names
+        // version 2 until the spec catches up.
+        #expect(json?["version"] as? Int == 4)
     }
 
     // trace: R-CMUSE-007.T3

@@ -12,7 +12,8 @@ public actor TranscriptStore {
         var inode: UInt64
     }
     /// Format FMT.2. Version 2 adds `summaries` and `summarizedBefore`; version 3 adds
-    /// `projectPaths` and `projectID` on entries and summaries. Versions 1 and 2 still load, and
+    /// `projectPaths` and `projectID` on entries and summaries; version 4 adds `sourceID` and
+    /// `imported` (history imported from other Macs). Versions 1 and 2 still load, and
     /// are rescanned once so calls whose transcripts still exist gain their project folder.
     /// trace: R-CMUSE-007 <- F-14, F-3.CR-1
     private struct Cache: Codable {
@@ -22,9 +23,11 @@ public actor TranscriptStore {
         var summaries: [WeeklySummary]?
         var summarizedBefore: Date?
         var projectPaths: [String: String]?
+        var sourceID: String?
+        var imported: [SourceHistory]?
     }
-    private static let cacheVersion = 3
-    private static let readableVersions: Set<Int> = [1, 2, 3]
+    private static let cacheVersion = 4
+    private static let readableVersions: Set<Int> = [1, 2, 3, 4]
 
     private let roots: [URL]
     private let cacheURL: URL
@@ -33,6 +36,14 @@ public actor TranscriptStore {
     private var summaries: [WeeklySummary] = []
     private var summarizedBefore: Date?
     private var projectPaths: [String: String] = [:]
+    /// Identifies this store in exported history, so an import can tell its own history apart.
+    private var sourceID = UUID().uuidString
+    /// History imported from other Macs, one per source; kept apart from this Mac's own so that
+    /// importing from a source again replaces it instead of counting it twice.
+    private var imported: [SourceHistory] = []
+    /// Keys of imported calls. A transcript line for one of them (transcripts copied along with
+    /// the history) is already counted and is not read again.
+    private var importedKeys: Set<String> = []
     private var loaded = false
     /// Set when an older cache was loaded: the next refresh rereads every transcript.
     private var needsBackfill = false
@@ -96,8 +107,106 @@ public actor TranscriptStore {
             summarizedBefore = boundary
             saveCache()
         }
-        return UsageData(entries: Array(entries.values), summaries: summaries, summarizedBefore: summarizedBefore,
-                         projectPaths: projectPaths)
+        if compactImported(before: boundary, policy: policy, calendar: calendar, prices: prices) { saveCache() }
+        return combinedData()
+    }
+
+    /// Summarizes imported calls older than the detail window, as for this Mac's own.
+    private func compactImported(before boundary: Date, policy: HistoryPolicy, calendar: Calendar,
+                                 prices: PriceTable) -> Bool {
+        var changed = false
+        for i in imported.indices where imported[i].entries.contains(where: { $0.timestamp < boundary }) {
+            let r = HistoryCompactor.compact(entries: imported[i].entries, summaries: imported[i].summaries,
+                                             before: boundary, policy: policy, calendar: calendar, prices: prices)
+            imported[i].entries = r.entries
+            imported[i].summaries = r.summaries
+            imported[i].summarizedBefore = max(imported[i].summarizedBefore ?? .distantPast, boundary)
+            changed = true
+        }
+        if changed { rebuildImportedKeys() }
+        return changed
+    }
+
+    /// This Mac's history plus every imported source. A call known both here and in an import
+    /// is counted once.
+    private func combinedData() -> UsageData {
+        var all = entries
+        var allSummaries = summaries
+        var paths = projectPaths
+        var before = summarizedBefore
+        for source in imported {
+            for e in source.entries where all[e.key] == nil { all[e.key] = e }
+            allSummaries += source.summaries
+            paths.merge(source.projectPaths) { mine, _ in mine }
+            if let b = source.summarizedBefore { before = max(before ?? b, b) }
+        }
+        return UsageData(entries: Array(all.values), summaries: allSummaries, summarizedBefore: before,
+                         projectPaths: paths)
+    }
+
+    // MARK: - Export and import
+
+    /// Everything this store has tracked, for carrying to another Mac. Reads new transcript
+    /// lines first so the export is current.
+    public func exportArchive(now: Date = Date(), sourceName: String = HostName.current) -> HistoryArchive {
+        _ = refresh()
+        saveCache() // persists `sourceID`, so a later export from this Mac is recognised as the same source
+        let own = SourceHistory(sourceID: sourceID, sourceName: sourceName, asOf: now,
+                                entries: entries.values.sorted { $0.timestamp < $1.timestamp },
+                                summaries: summaries, summarizedBefore: summarizedBefore,
+                                projectPaths: projectPaths)
+        return HistoryArchive(history: own, imported: imported, exportedAt: now)
+    }
+
+    /// Adds the history in `archive`. Importing the same or an older export again changes nothing;
+    /// a newer export from the same Mac replaces the history imported from it before.
+    public func importArchive(_ archive: HistoryArchive, now: Date, policy: HistoryPolicy,
+                              prices: PriceTable = .standard,
+                              calendar: Calendar = .current) -> (HistoryImportResult, UsageData) {
+        if !loaded { loadCache() }
+        var results: [HistoryImportResult.Source] = []
+        for var source in archive.sources {
+            let name = source.sourceName
+            if source.sourceID == sourceID {
+                results.append(.init(name: name, requests: source.requests, outcome: .thisMac))
+                continue
+            }
+            // Calls this Mac already read from its own transcripts stay its own.
+            source.entries.removeAll { entries[$0.key] != nil }
+            let outcome: HistoryImportResult.Outcome
+            if let i = imported.firstIndex(where: { $0.sourceID == source.sourceID }) {
+                if imported[i].asOf >= source.asOf {
+                    outcome = .unchanged
+                } else {
+                    imported[i] = source
+                    outcome = .replaced
+                }
+            } else {
+                imported.append(source)
+                outcome = .added
+            }
+            results.append(.init(name: name, requests: source.requests, outcome: outcome))
+        }
+        let result = HistoryImportResult(sources: results)
+        rebuildImportedKeys()
+        let data = refresh(now: now, policy: policy, prices: prices, calendar: calendar)
+        if result.changed { saveCache() }
+        return (result, data)
+    }
+
+    /// Sources imported so far, without their calls, for display.
+    public func importedSources() -> [SourceHistory] {
+        if !loaded { loadCache() }
+        return imported.map {
+            var s = $0
+            s.entries = []
+            s.summaries = []
+            return s
+        }
+    }
+
+    private func rebuildImportedKeys() {
+        importedKeys = Set(imported.flatMap { $0.entries.map(\.key) })
     }
 
     /// `rescanAll()` followed by summarizing. Lines older than `summarizedBefore` are skipped
@@ -164,6 +273,7 @@ public actor TranscriptStore {
             }
             // trace: R-CMUSE-015 <- F-14 — a call before summarizedBefore is already in a summary.
             if let cutoff = summarizedBefore, entry.timestamp < cutoff { continue }
+            if importedKeys.contains(entry.key) { continue }
             entries[entry.key] = entries[entry.key].map { $0.merged(with: entry) } ?? entry
         }
         files[path] = FileState(offset: start + UInt64(complete.count), inode: inode)
@@ -188,6 +298,9 @@ public actor TranscriptStore {
         summaries = cache.summaries ?? []
         summarizedBefore = cache.summarizedBefore
         projectPaths = cache.projectPaths ?? [:]
+        if let id = cache.sourceID { sourceID = id }
+        imported = cache.imported ?? []
+        rebuildImportedKeys()
         needsBackfill = cache.version < 3
     }
 
@@ -200,7 +313,8 @@ public actor TranscriptStore {
 
     private func saveCache() {
         let cache = Cache(version: Self.cacheVersion, files: files, entries: Array(entries.values),
-                          summaries: summaries, summarizedBefore: summarizedBefore, projectPaths: projectPaths)
+                          summaries: summaries, summarizedBefore: summarizedBefore, projectPaths: projectPaths,
+                          sourceID: sourceID, imported: imported)
         try? FileManager.default.createDirectory(at: cacheURL.deletingLastPathComponent(),
                                                  withIntermediateDirectories: true)
         if let data = try? JSONEncoder.cache.encode(cache) {
