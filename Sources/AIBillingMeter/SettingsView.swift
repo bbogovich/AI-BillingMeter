@@ -6,6 +6,7 @@ struct SettingsView: View {
     @Bindable var model: AppModel
     @State private var launchAtLogin = false
     @State private var transferMessage: String?
+    static let width: CGFloat = 460
 
     var body: some View {
         Form {
@@ -81,8 +82,8 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 460)
-        .fixedSize(horizontal: false, vertical: true)
+        .frame(width: SettingsView.width)
+        .frame(minHeight: 300)
         .onAppear { launchAtLogin = model.launchAtLogin }
     }
 

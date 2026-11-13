@@ -22,6 +22,9 @@ final class StatusBarController: NSObject {
     private var statusItem: NSStatusItem?
     private var panel: UsagePanel?
     private var hosting: NSView?
+    /// Height of the panel's content as last measured by SwiftUI (see WindowFitter).
+    private var contentHeight: CGFloat?
+    private static let panelWidth: CGFloat = 400
     private var outsideClickMonitor: Any?
     /// When the panel last closed. Clicking the item while the panel is open closes the panel on
     /// mouse-down (it loses focus) before the click arrives; the click must not reopen it.
@@ -155,9 +158,11 @@ final class StatusBarController: NSObject {
     func showPanel() {
         let panel = self.panel ?? makePanel()
         self.panel = panel
-        var size = hosting?.fittingSize ?? .zero
-        if size.width < 1 || size.height < 1 { size = NSSize(width: 400, height: 600) }
+        var height = contentHeight ?? hosting?.fittingSize.height ?? 0
+        if height < 1 { height = 600 }
+        let size = NSSize(width: Self.panelWidth, height: height)
         panel.setFrame(NSRect(origin: panelOrigin(for: size), size: size), display: false)
+        fitPanel()
         panel.makeKeyAndOrderFront(nil)
         statusItem?.button?.highlight(true)
         Task { await model.refreshAll() }
@@ -174,6 +179,28 @@ final class StatusBarController: NSObject {
         statusItem?.button?.highlight(false)
         if let monitor = outsideClickMonitor { NSEvent.removeMonitor(monitor) }
         outsideClickMonitor = nil
+    }
+
+    /// SwiftUI measured new content height (first layout, a tab switch, new data).
+    private func contentHeightChanged(_ height: CGFloat) {
+        guard height > 0 else { return }
+        contentHeight = height
+        fitPanel()
+    }
+
+    /// Sizes the panel to its content, keeping its top edge where it is and its bottom on screen.
+    private func fitPanel() {
+        guard let panel, let height = contentHeight else { return }
+        var frame = panel.frame
+        let top = frame.maxY
+        var target = height
+        if let visible = (panel.screen ?? NSScreen.main)?.visibleFrame {
+            target = min(target, top - visible.minY - 4)
+        }
+        guard abs(frame.height - target) > 0.5 else { return }
+        frame.size.height = target
+        frame.origin.y = top - target
+        panel.setFrame(frame, display: true, animate: false)
     }
 
     /// Top-left corner of the panel: under the menu bar item when it is visible, otherwise at the
@@ -204,9 +231,12 @@ final class StatusBarController: NSObject {
                 self?.closePanel()
                 self?.showSettings()
             })
+            .environment(\.contentHeightChanged, ContentHeightAction { [weak self] height in
+                self?.contentHeightChanged(height)
+            })
         let hosting = NSHostingView(rootView: content)
-        // No sizing options and no Auto Layout: the panel's height is owned by WindowFitter alone,
-        // which keeps the top edge under the menu bar. With `.intrinsicContentSize` plus edge
+        // No sizing options and no Auto Layout: the panel's height is owned by this controller
+        // alone (fitPanel, fed by WindowFitter), which keeps the top edge under the menu bar. With `.intrinsicContentSize` plus edge
         // constraints, AppKit also resized the window whenever the content height changed (on a
         // tab switch), anchored at its bottom-left, so the two fought: the panel rose past the
         // menu bar or its background and content separated, leaving a transparent band.

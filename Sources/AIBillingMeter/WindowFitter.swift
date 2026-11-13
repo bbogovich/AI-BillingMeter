@@ -1,11 +1,10 @@
-import AppKit
 import SwiftUI
 
-/// Keeps the usage panel the height of its content, anchored under the menu bar.
+/// Reports the usage panel's content height so `StatusBarController` can size the panel to it.
 ///
-/// The window does not shrink when its content does, so shorter content would be centred in
-/// an oversized window and the panel would appear to drop away from the menu bar. This
-/// resizes the window to the measured content height and keeps its top edge where it was.
+/// The controller owns the panel's frame: it keeps the top edge under the menu bar and uses the
+/// last reported height both when the panel opens and whenever the content changes (a tab switch).
+/// The view never resizes its window itself; two owners of one frame fought each other before.
 extension View {
     func fitsMenuBarWindow() -> some View {
         modifier(WindowFitter())
@@ -13,46 +12,30 @@ extension View {
 }
 
 private struct WindowFitter: ViewModifier {
-    @State private var window: NSWindow?
+    @Environment(\.contentHeightChanged) private var report
 
     func body(content: Content) -> some View {
         content
             .fixedSize(horizontal: false, vertical: true)
-            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
-                resize(to: height)
-            }
-            .background(WindowReader(window: $window))
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { report($0) }
             .frame(maxHeight: .infinity, alignment: .top)
-            .onChange(of: window) { resize(to: nil) }
-    }
-
-    private func resize(to height: CGFloat?) {
-        guard let window, let view = window.contentView else { return }
-        let target = height ?? view.fittingSize.height
-        guard target > 0 else { return }
-        var frame = window.frame
-        let contentHeight = window.contentRect(forFrameRect: frame).height
-        let delta = target - contentHeight
-        guard abs(delta) > 0.5 else { return }
-        let top = frame.maxY
-        frame.size.height += delta
-        frame.origin.y = top - frame.size.height
-        window.setFrame(frame, display: true, animate: false)
     }
 }
 
-private struct WindowReader: NSViewRepresentable {
-    @Binding var window: NSWindow?
+/// Receives the panel content's measured height. Injected by `StatusBarController`.
+struct ContentHeightAction {
+    let action: (CGFloat) -> Void
+    init(_ action: @escaping (CGFloat) -> Void = { _ in }) { self.action = action }
+    func callAsFunction(_ height: CGFloat) { action(height) }
+}
 
-    func makeNSView(context: Context) -> NSView {
-        let view = NSView()
-        DispatchQueue.main.async { window = view.window }
-        return view
-    }
+private struct ContentHeightKey: EnvironmentKey {
+    static let defaultValue = ContentHeightAction()
+}
 
-    func updateNSView(_ view: NSView, context: Context) {
-        if view.window !== window {
-            DispatchQueue.main.async { window = view.window }
-        }
+extension EnvironmentValues {
+    var contentHeightChanged: ContentHeightAction {
+        get { self[ContentHeightKey.self] }
+        set { self[ContentHeightKey.self] = newValue }
     }
 }
